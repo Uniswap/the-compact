@@ -1,0 +1,20 @@
+[profile.default]
+solc = '0.8.28'
+evm_version='cancun'
+via_ir = true
+# optimizer_runs = 4_294_967_295
+optimizer_runs = 200
+bytecode_hash = 'none'
+src = "src"
+out = "out"
+libs = ["lib"]
+extra_output_files = ["irOptimized"]
+
+[profile.default.optimizer_details.yulDetails]
+# optimizerSteps = "dhfoD[xarrscLMcCTU]uljmul:fDnTOcmu"
+# TODO: use default with everything but FunctionSpecializer (F)
+
+[fmt]
+line_length = 210
+tab_width = 4
+bracket_spacing = true
