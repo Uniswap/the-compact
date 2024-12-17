@@ -32,7 +32,7 @@ contract SharedLogic is ConstructorLogic {
      * @param amount The amount of tokens to transfer.
      * @return       Whether the transfer was successful.
      */
-    function _release(address from, address to, uint256 id, uint256 amount) internal returns (bool) {
+    function _release(address from, address to, uint256 id, uint256 amount) internal virtual returns (bool) {
         assembly ("memory-safe") {
             // Compute the sender's balance slot using the master slot seed.
             mstore(0x20, _ERC6909_MASTER_SLOT_SEED)
@@ -94,7 +94,7 @@ contract SharedLogic is ConstructorLogic {
      * @param amount The amount of tokens to burn and withdraw.
      * @return       Whether the withdrawal was successful.
      */
-    function _withdraw(address from, address to, uint256 id, uint256 amount) internal returns (bool) {
+    function _withdraw(address from, address to, uint256 id, uint256 amount) internal virtual returns (bool) {
         // Set reentrancy guard due to external token transfers.
         _setReentrancyGuard();
 
