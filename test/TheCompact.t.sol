@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import { Test, console } from "forge-std/Test.sol";
 import { TheCompact } from "../src/TheCompact.sol";
+import { ServerAllocator } from "../src/examples/allocator/ServerAllocator.sol";
 import { MockERC20 } from "../lib/solady/test/utils/mocks/MockERC20.sol";
 import { Compact, BatchCompact, Segment } from "../src/types/EIP712Types.sol";
 import { ResetPeriod } from "../src/types/ResetPeriod.sol";
@@ -1082,6 +1083,54 @@ contract TheCompactTest is Test {
 
         vm.prank(arbiter);
         (bool status) = theCompact.claim(claim);
+        vm.snapshotGasLastCall("claim");
+        assert(status);
+
+        assertEq(address(theCompact).balance, amount);
+        assertEq(claimant.balance, 0);
+        assertEq(theCompact.balanceOf(swapper, id), 0);
+        assertEq(theCompact.balanceOf(claimant, id), amount);
+    }
+
+    function test_claim_viaServerAllocator() public {
+        ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
+        Scope scope = Scope.Multichain;
+        uint256 amount = 1e18;
+        uint256 nonce = 0;
+        uint256 expires = block.timestamp + 1000;
+        address claimant = 0x1111111111111111111111111111111111111111;
+        address arbiter = 0x2222222222222222222222222222222222222222;
+
+        address owner = makeAddr("Owner");
+
+        // Contract registers as an allocator in the Compact contract on deployment
+        ServerAllocator serverAllocator = new ServerAllocator(owner, address(theCompact));
+
+        (address signer, uint256 signerPK) = makeAddrAndKey("Signer");
+        // Register the signer with the allocator
+        vm.prank(owner);
+        serverAllocator.addSigner(signer);
+
+        vm.prank(swapper);
+        uint256 id = theCompact.deposit{ value: amount }(address(serverAllocator), resetPeriod, scope, swapper);
+        assertEq(theCompact.balanceOf(swapper, id), amount);
+
+        bytes32 claimHash = keccak256(abi.encode(keccak256("Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount)"), arbiter, swapper, nonce, expires, id, amount));
+
+        bytes32 digest = keccak256(abi.encodePacked(bytes2(0x1901), theCompact.DOMAIN_SEPARATOR(), claimHash));
+
+        (bytes32 r_sponsor, bytes32 vs_sponsor) = vm.signCompact(swapperPrivateKey, digest);
+        bytes memory sponsorSignature = abi.encodePacked(r_sponsor, vs_sponsor);
+
+        // Server Allocator expects a 65 byte (non compact) signature
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPK, digest);
+
+        bytes memory allocatorSignature = abi.encodePacked(r, s, v);
+
+        BasicClaim memory claim = BasicClaim(allocatorSignature, sponsorSignature, swapper, nonce, expires, id, amount, claimant, amount);
+
+        vm.prank(arbiter);
+        bool status = theCompact.claim(claim);
         vm.snapshotGasLastCall("claim");
         assert(status);
 
