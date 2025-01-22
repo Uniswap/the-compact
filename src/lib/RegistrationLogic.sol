@@ -2,6 +2,8 @@
 pragma solidity ^0.8.27;
 
 import { RegistrationLib } from "./RegistrationLib.sol";
+import { HashLib } from "./HashLib.sol";
+import { COMPACT_TYPEHASH, BATCH_COMPACT_TYPEHASH } from "../types/EIP712Types.sol";
 
 /**
  * @title RegistrationLogic
@@ -59,5 +61,25 @@ contract RegistrationLogic {
      */
     function _getRegistrationStatus(address sponsor, bytes32 claimHash, bytes32 typehash) internal view returns (uint256 expires) {
         return sponsor.toRegistrationExpiration(claimHash, typehash);
+    }
+
+    function _registerUsingClaim(address sponsor, uint256 id, uint256 amount, address arbiter,  uint256 nonce, uint256 expires) internal {
+        bytes32 claimhash = HashLib.toFlatClaimMessageHash(sponsor, id, amount, arbiter, nonce, expires);
+        sponsor.registerCompactWithSpecificExpiry(claimhash, COMPACT_TYPEHASH, expires);
+    }
+
+    function _registerUsingClaimWithWitness(address sponsor, uint256 id, uint256 amount, address arbiter,  uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness) internal {
+        bytes32 claimhash = HashLib.toFlatMessageHashWithWitness(sponsor, id, amount, arbiter, nonce, expires, typehash, witness);
+        sponsor.registerCompactWithSpecificExpiry(claimhash, typehash, expires);
+    }
+
+    function _registerUsingBatchClaim(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter,  uint256 nonce, uint256 expires) internal {
+        bytes32 claimhash = HashLib.toFlatBatchMessageHash(sponsor, idsAndAmounts, arbiter, nonce, expires);
+        sponsor.registerCompactWithSpecificExpiry(claimhash, BATCH_COMPACT_TYPEHASH, expires);
+    }
+
+    function _registerUsingBatchClaimWithWitness(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter,  uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness) internal {
+        bytes32 claimhash = HashLib.toFlatBatchClaimWithWitnessMessageHash(sponsor, idsAndAmounts, arbiter, nonce, expires, typehash, witness);
+        sponsor.registerCompactWithSpecificExpiry(claimhash, typehash, expires);
     }
 }
