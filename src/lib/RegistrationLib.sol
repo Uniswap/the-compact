@@ -71,43 +71,33 @@ library RegistrationLib {
         }
     }
 
+    /**
+     * @notice Helper function for registerCompactWithSpecificDuration, if the expiry is known
+     * but the duration is not. Is less efficient than registerCompactWithSpecificDuration
+     * @dev Expires will be converted into a duration by subtracting the current timestamp from it
+     * If the current timestamp is greater than the expires, the call will revert.
+     * @param sponsor   The account registering the claim hash.
+     * @param claimHash A bytes32 hash derived from the details of the compact.
+     * @param typehash  The EIP-712 typehash associated with the claim hash.
+     * @param expires   Timestamp when the claim will expire.
+     */
     function registerCompactWithSpecificExpiry(address sponsor, bytes32 claimHash, bytes32 typehash, uint256 expires) internal {
+        uint256 duration;
         assembly ("memory-safe") {
-            // Retrieve the current free memory pointer.
-            let m := mload(0x40)
-
-            // Pack data for deriving active registration storage slot.
-            mstore(add(m, 0x14), sponsor)
-            mstore(m, _ACTIVE_REGISTRATIONS_SCOPE)
-            mstore(add(m, 0x34), claimHash)
-            mstore(add(m, 0x54), typehash)
-
-            // Derive and load active registration storage slot to get current expiration.
-            let cutoffSlot := keccak256(add(m, 0x1c), 0x58)
-
             // Compute new expiration based on current timestamp and supplied duration.
             // This may overflow. We check overflow during InvalidRegistrationDuration.
-            let duration := sub(expires, timestamp())
+            duration := sub(expires, timestamp())
 
             // Ensure new expiration does not exceed current and duration does not exceed 30 days.
             // If duration > expires AND duration = expires - timestmap > expires, then overflow.
-            if or(or(gt(duration, expires) ,lt(expires, sload(cutoffSlot))), gt(duration, 0x278d00)) {
+            if gt(duration, expires) {
                 // revert InvalidRegistrationDuration(uint256 duration)
                 mstore(0, 0x1f9a96f4)
                 mstore(0x20, duration)
                 revert(0x1c, 0x24)
             }
-
-            // Store new expiration in active registration storage slot.
-            sstore(cutoffSlot, expires)
-
-            // Emit the CompactRegistered event:
-            //  - topic1: CompactRegistered event signature
-            //  - topic2: sponsor address (sanitized)
-            //  - data: [claimHash, typehash, expires]
-            mstore(add(m, 0x74), expires)
-            log2(add(m, 0x34), 0x60, _COMPACT_REGISTERED_SIGNATURE, shr(0x60, shl(0x60, sponsor)))
         }
+        registerCompactWithSpecificDuration(sponsor, claimHash, typehash, duration);
     }
 
     /**

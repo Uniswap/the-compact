@@ -685,7 +685,17 @@ library HashLib {
     }
 
     function toIdsAndAmountsHash(uint256[2][] calldata idsAndAmounts) internal pure returns (bytes32 idsAndAmountsHash) {
-        idsAndAmountsHash = keccak256(abi.encodePacked(idsAndAmounts));
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let ptr := mload(0x40)
+            // Get the total length of the calldata slice. 
+            // For every 1 instance of uint256[], it takes up 2 words.
+            let len := mul(idsAndAmounts.length, 0x40)
+            // Copy calldata into memory at the free memory pointer.
+            calldatacopy(ptr, idsAndAmounts.offset, len)
+            // Compute the hash of the calldata that has been copied into memory.
+            idsAndAmountsHash := keccak256(ptr, len)
+        }
     }
 
     /**
