@@ -45,13 +45,28 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         _registerWithDefaults(claimHash, typehash);
     }
 
-    function depositAndRegisterFor(address recipient, address token, address allocator, ResetPeriod resetPeriod, Scope scope, uint256 amount, address arbiter, uint256 nonce, uint256 expires) external returns (uint256 id) {
+    function depositAndRegisterFor(address recipient, address token, address allocator, ResetPeriod resetPeriod, Scope scope, uint256 amount, address arbiter, uint256 nonce, uint256 expires)
+        external
+        returns (uint256 id)
+    {
         id = _performCustomERC20Deposit(token, allocator, resetPeriod, scope, amount, recipient);
 
         _registerUsingClaim(recipient, id, amount, arbiter, nonce, expires, resetPeriod);
     }
 
-    function depositAndRegisterFor(address recipient, address token, address allocator, ResetPeriod resetPeriod, Scope scope, uint256 amount, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness) external returns (uint256 id) {
+    function depositAndRegisterFor(
+        address recipient,
+        address token,
+        address allocator,
+        ResetPeriod resetPeriod,
+        Scope scope,
+        uint256 amount,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) external returns (uint256 id) {
         id = _performCustomERC20Deposit(token, allocator, resetPeriod, scope, amount, recipient);
 
         _registerUsingClaimWithWitness(recipient, id, amount, arbiter, nonce, expires, typehash, witness, resetPeriod);
@@ -83,7 +98,9 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         _registerUsingBatchClaim(recipient, idsAndAmounts, arbiter, nonce, expires, resetPeriod);
     }
 
-    function depositAndRegisterFor(address recipient, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness, ResetPeriod resetPeriod) external {
+    function depositAndRegisterFor(address recipient, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness, ResetPeriod resetPeriod)
+        external
+    {
         _processBatchDeposit(idsAndAmounts, recipient);
 
         _registerUsingBatchClaimWithWitness(recipient, idsAndAmounts, arbiter, nonce, expires, typehash, witness, resetPeriod);

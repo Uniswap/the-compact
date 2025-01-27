@@ -688,7 +688,7 @@ library HashLib {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let ptr := mload(0x40)
-            // Get the total length of the calldata slice. 
+            // Get the total length of the calldata slice.
             // For every 1 instance of uint256[], it takes up 2 words.
             let len := mul(idsAndAmounts.length, 0x40)
             // Copy calldata into memory at the free memory pointer.
@@ -797,7 +797,7 @@ library HashLib {
     }
 
     //// Registration Hashes ////
-    function toFlatClaimMessageHash(address sponsor, uint256 tokenId, uint256 amount, address arbiter,  uint256 nonce, uint256 expires) internal pure returns(bytes32 messageHash) {
+    function toFlatClaimMessageHash(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires) internal pure returns (bytes32 messageHash) {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -814,7 +814,11 @@ library HashLib {
         }
     }
 
-    function toFlatMessageHashWithWitness(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness) internal pure returns(bytes32 messageHash) {
+    function toFlatMessageHashWithWitness(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
+        internal
+        pure
+        returns (bytes32 messageHash)
+    {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -832,7 +836,7 @@ library HashLib {
         }
     }
 
-    function toFlatBatchMessageHash(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter,  uint256 nonce, uint256 expires) internal pure returns(bytes32 messageHash) {
+    function toFlatBatchMessageHash(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires) internal pure returns (bytes32 messageHash) {
         bytes32 idsAndAmountsHash = idsAndAmounts.toIdsAndAmountsHash();
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
@@ -850,7 +854,11 @@ library HashLib {
         }
     }
 
-    function toFlatBatchClaimWithWitnessMessageHash(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter,  uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness) internal pure returns(bytes32 messageHash) {
+    function toFlatBatchClaimWithWitnessMessageHash(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
+        internal
+        pure
+        returns (bytes32 messageHash)
+    {
         bytes32 idsAndAmountsHash = idsAndAmounts.toIdsAndAmountsHash();
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
