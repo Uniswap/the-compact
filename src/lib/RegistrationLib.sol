@@ -72,35 +72,6 @@ library RegistrationLib {
     }
 
     /**
-     * @notice Helper function for registerCompactWithSpecificDuration, if the expiry is known
-     * but the duration is not. Is less efficient than registerCompactWithSpecificDuration
-     * @dev Expires will be converted into a duration by subtracting the current timestamp from it
-     * If the current timestamp is greater than the expires, the call will revert.
-     * @param sponsor   The account registering the claim hash.
-     * @param claimHash A bytes32 hash derived from the details of the compact.
-     * @param typehash  The EIP-712 typehash associated with the claim hash.
-     * @param expires   Timestamp when the claim will expire.
-     */
-    function registerCompactWithSpecificExpiry(address sponsor, bytes32 claimHash, bytes32 typehash, uint256 expires) internal {
-        uint256 duration;
-        assembly ("memory-safe") {
-            // Compute new expiration based on current timestamp and supplied duration.
-            // This may overflow. We check overflow during InvalidRegistrationDuration.
-            duration := sub(expires, timestamp())
-
-            // Ensure new expiration does not exceed current and duration does not exceed 30 days.
-            // If duration > expires AND duration = expires - timestmap > expires, then overflow.
-            if gt(duration, expires) {
-                // revert InvalidRegistrationDuration(uint256 duration)
-                mstore(0, 0x1f9a96f4)
-                mstore(0x20, duration)
-                revert(0x1c, 0x24)
-            }
-        }
-        registerCompactWithSpecificDuration(sponsor, claimHash, typehash, duration);
-    }
-
-    /**
      * @notice Internal function for registering a claim hash with a duration specified as a
      * ResetPeriod enum value.
      * @param sponsor   The account registering the claim hash.
