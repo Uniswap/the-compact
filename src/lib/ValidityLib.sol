@@ -7,7 +7,7 @@ import { IdLib } from "./IdLib.sol";
 import { ConsumerLib } from "./ConsumerLib.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { DomainLib } from "./DomainLib.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { SignatureCheckerLib } from "./SignatureCheckerLib.sol";
 
 /**
  * @title ValidityLib

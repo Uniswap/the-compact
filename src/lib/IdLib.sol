@@ -6,9 +6,7 @@ import { Scope } from "../types/Scope.sol";
 import { Lock } from "../types/Lock.sol";
 import { MetadataLib } from "./MetadataLib.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
-import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { CompactCategory } from "../types/CompactCategory.sol";
-
 import { EfficientHashLib } from "solady/utils/EfficientHashLib.sol";
 
 /**
@@ -31,7 +29,6 @@ library IdLib {
     using EfficiencyLib for address;
     using EfficiencyLib for ResetPeriod;
     using EfficiencyLib for Scope;
-    using SignatureCheckerLib for address;
     using EfficientHashLib for bytes;
 
     error NoAllocatorRegistered(uint96 allocatorId);
