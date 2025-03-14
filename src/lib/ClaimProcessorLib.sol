@@ -312,32 +312,6 @@ library ClaimProcessorLib {
     }
 
     /**
-     * @notice Internal function for processing batch claims with qualification messages.
-     * Extracts batch claim parameters from calldata, validates the claim using the provided
-     * qualification message, and executes operations for multiple resource locks to a single
-     * recipient. Uses a zero sponsor domain separator.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @return                         Whether the batch claim was successfully processed.
-     */
-    function processBatchClaimWithQualification(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processBatchClaimWithQualificationAndSponsorDomain(qualificationMessageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
-    }
-
-    /**
      * @notice Internal function for processing simple split batch claims with local domain
      * signatures. Extracts split batch claim parameters from calldata, validates the claim,
      * and executes operations for multiple resource locks to multiple recipients. Uses the
@@ -359,32 +333,6 @@ library ClaimProcessorLib {
         function(address, address, uint256, uint256) internal returns (bool) operation
     ) internal returns (bool) {
         return messageHash.processSplitBatchClaimWithQualificationAndSponsorDomain(messageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
-    }
-
-    /**
-     * @notice Internal function for processing split batch claims with qualification
-     * messages. Extracts split batch claim parameters from calldata, validates the claim
-     * using the provided qualification message, and executes operations for multiple
-     * resource locks to multiple recipients. Uses a zero sponsor domain separator.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @return                         Whether the split batch claim was successfully processed.
-     */
-    function processSplitBatchClaimWithQualification(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processSplitBatchClaimWithQualificationAndSponsorDomain(qualificationMessageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
     }
 
     /**
@@ -411,58 +359,6 @@ library ClaimProcessorLib {
         function(address, address, uint256, uint256) internal returns (bool) operation
     ) internal returns (bool) {
         return messageHash.processClaimWithQualificationAndSponsorDomain(messageHash, calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator, operation);
-    }
-
-    /**
-     * @notice Internal function for processing claims with qualification messages.
-     * Extracts claim parameters from calldata, validates the claim using the provided
-     * qualification message, and executes the operation. Uses a zero sponsor domain
-     * separator.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @return                         Whether the claim was successfully processed.
-     */
-    function processClaimWithQualification(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processClaimWithQualificationAndSponsorDomain(qualificationMessageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
-    }
-
-    /**
-     * @notice Internal function for processing split claims with qualification messages.
-     * Extracts split claim parameters from calldata, validates the claim using the provided
-     * qualification message, and executes operations for multiple recipients. Uses a zero
-     * sponsor domain separator.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @return                         Whether the split claim was successfully processed.
-     */
-    function processSplitClaimWithQualification(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processSplitClaimWithQualificationAndSponsorDomain(qualificationMessageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
     }
 
     /**
