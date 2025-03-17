@@ -103,7 +103,7 @@ contract SharedLogic is ConstructorLogic {
 
         // Handle native token withdrawals directly.
         if (token == address(0)) {
-            to.safeTransferETH(amount);
+            to.trySafeTransferETH(amount, SafeTransferLib.GAS_STIPEND_NO_GRIEF);
         } else {
             // For ERC20s, track balance change to determine actual withdrawal amount.
             uint256 initialBalance = token.balanceOf(address(this));
