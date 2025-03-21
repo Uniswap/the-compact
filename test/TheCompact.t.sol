@@ -1160,15 +1160,19 @@ contract TheCompactTest is Test {
         vm.prank(swapperSponsor);
         token.approve(address(theCompact), 1e18);
 
+        string memory witnessTypestring = "Witness witness)Witness(uint256 witnessArgument)";
+        uint256 witnessArgument = 234;
+        bytes32 witness = keccak256(abi.encode(witnessArgument));
+
+        bytes32 typehash = keccak256("Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount,Witness witness)Witness(uint256 witnessArgument)");
+
         vm.prank(swapperSponsor);
-        uint256 id = theCompact.depositAndRegisterFor(address(swapper), address(token), allocator, resetPeriod, scope, amount, arbiter, nonce, expires);
+        uint256 id = theCompact.depositAndRegisterFor(address(swapper), address(token), allocator, resetPeriod, scope, amount, arbiter, nonce, expires, typehash, witness);
         assertEq(theCompact.balanceOf(swapper, id), amount);
         assertEq(token.balanceOf(address(theCompact)), amount);
         vm.snapshotGasLastCall("depositRegisterFor");
 
-        bytes32 typehash = keccak256("Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount)");
-
-        bytes32 claimHash = keccak256(abi.encode(typehash, arbiter, swapper, nonce, expires, id, amount));
+        bytes32 claimHash = keccak256(abi.encode(typehash, arbiter, swapper, nonce, expires, id, amount, witness));
 
         bytes32 digest = keccak256(abi.encodePacked(bytes2(0x1901), theCompact.DOMAIN_SEPARATOR(), claimHash));
 
@@ -1181,7 +1185,7 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorSignature = abi.encodePacked(r, vs);
 
-        BasicClaim memory claim = BasicClaim(allocatorSignature, sponsorSignature, swapper, nonce, expires, id, amount, claimant, amount);
+        ClaimWithWitness memory claim = ClaimWithWitness(allocatorSignature, sponsorSignature, swapper, nonce, expires, witness, witnessTypestring, id, amount, claimant, amount);
 
         vm.prank(arbiter);
         bool status = theCompact.claim(claim);

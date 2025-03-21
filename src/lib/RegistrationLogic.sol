@@ -67,26 +67,6 @@ contract RegistrationLogic {
     //// Registration of specific claims ////
 
     /**
-     * @notice Internal function to register a specific claim by its components.
-     * @dev Constructs and registers the compact that consists exactly of the provided
-     * arguments.
-     * @param sponsor    Account that the claim should be registered for.
-     * @param tokenId    Identifier for the associated token & lock.
-     * @param amount     Claim's assocaited number of tokens.
-     * @param arbiter    Account verifying and initiating the settlement of the claim.
-     * @param nonce      Nonce to register the claim at. The nonce is not checked to be
-     * unspent
-     * @param expires    Timestamp when the claim expires. Not to be confused with the reset
-     * time of the compact.
-     * @param resetPeriod Duration after which the resource locks can be reset once forced
-     * withdrawals are initiated.
-     */
-    function _registerUsingClaim(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires, ResetPeriod resetPeriod) internal {
-        bytes32 claimhash = HashLib.toFlatClaimMessageHash(sponsor, tokenId, amount, arbiter, nonce, expires);
-        sponsor.registerCompact(claimhash, COMPACT_TYPEHASH, resetPeriod);
-    }
-
-    /**
      * @notice Internal function to register a claim with witness by its components.
      * @dev Constructs and registers the compact that consists exactly of the provided
      * arguments.
@@ -109,25 +89,6 @@ contract RegistrationLogic {
     {
         bytes32 claimhash = HashLib.toFlatMessageHashWithWitness(sponsor, tokenId, amount, arbiter, nonce, expires, typehash, witness);
         sponsor.registerCompact(claimhash, typehash, resetPeriod);
-    }
-
-    /**
-     * @notice Internal function to register a batch claim by its components.
-     * @dev Constructs and registers the compact that consists exactly of the provided
-     * arguments.
-     * @param sponsor       Account that the claim should be registered for.
-     * @param idsAndAmounts Ids and amounts associated with the to be registered claim.
-     * @param arbiter       Account verifying and initiating the settlement of the claim.
-     * @param nonce         Nonce to register the claim at. The nonce is not checked to be
-     * unspent
-     * @param expires       Timestamp when the claim expires. Not to be confused with the
-     * reset time of the compact.
-     * @param resetPeriod   Duration after which the resource locks can be reset once forced
-     * withdrawals are initiated.
-     */
-    function _registerUsingBatchClaim(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, ResetPeriod resetPeriod) internal {
-        bytes32 claimhash = HashLib.toFlatBatchMessageHash(sponsor, idsAndAmounts, arbiter, nonce, expires);
-        sponsor.registerCompact(claimhash, BATCH_COMPACT_TYPEHASH, resetPeriod);
     }
 
     /**

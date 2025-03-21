@@ -797,22 +797,6 @@ library HashLib {
     }
 
     //// Registration Hashes ////
-    function toFlatClaimMessageHash(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires) internal pure returns (bytes32 messageHash) {
-        assembly ("memory-safe") {
-            // Retrieve the free memory pointer; memory will be left dirtied.
-            let m := mload(0x40)
-
-            mstore(m, COMPACT_TYPEHASH)
-            mstore(add(m, 0x20), arbiter)
-            mstore(add(m, 0x40), sponsor)
-            mstore(add(m, 0x60), nonce)
-            mstore(add(m, 0x80), expires)
-            mstore(add(m, 0xa0), tokenId)
-            mstore(add(m, 0xc0), amount)
-            // Derive the message hash from the prepared data.
-            messageHash := keccak256(m, 0xe0)
-        }
-    }
 
     function toFlatMessageHashWithWitness(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
         internal
@@ -833,24 +817,6 @@ library HashLib {
             mstore(add(m, 0xe0), witness)
             // Derive the message hash from the prepared data.
             messageHash := keccak256(m, 0x100)
-        }
-    }
-
-    function toFlatBatchMessageHash(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires) internal pure returns (bytes32 messageHash) {
-        bytes32 idsAndAmountsHash = idsAndAmounts.toIdsAndAmountsHash();
-        assembly ("memory-safe") {
-            // Retrieve the free memory pointer; memory will be left dirtied.
-            let m := mload(0x40)
-
-            mstore(m, BATCH_COMPACT_TYPEHASH)
-            mstore(add(m, 0x20), arbiter)
-            mstore(add(m, 0x40), sponsor)
-            mstore(add(m, 0x60), nonce)
-            mstore(add(m, 0x80), expires)
-            mstore(add(m, 0xa0), idsAndAmountsHash)
-
-            // Derive the message hash from the prepared data.
-            messageHash := keccak256(m, 0xc0)
         }
     }
 
