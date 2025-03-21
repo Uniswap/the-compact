@@ -181,35 +181,6 @@ library ClaimProcessorLib {
     }
 
     /**
-     * @notice Internal function for processing qualified batch claims with potentially exogenous
-     * sponsor signatures. Extracts batch claim parameters from calldata, validates the claim,
-     * executes operations, and performs optimized validation of allocator consistency, amounts,
-     * and scopes. If any validation fails, all operations are reverted after explicitly
-     * identifying the specific validation failures.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param sponsorDomainSeparator   The domain separator for the sponsor's signature, or zero for non-exogenous claims.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @return                         Whether the batch claim was successfully processed.
-     */
-    function processBatchClaimWithQualificationAndSponsorDomain(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomainSeparator,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processClaimWithBatchComponents(qualificationMessageHash, calldataPointer, offsetToId, sponsorDomainSeparator, typehash, domainSeparator, operation, validate);
-    }
-
-    /**
      * @notice Internal function for processing qualified split batch claims with potentially
      * exogenous sponsor signatures. Extracts split batch claim parameters from calldata,
      * validates the claim, and executes split operations for each resource lock. Uses optimized
@@ -284,57 +255,6 @@ library ClaimProcessorLib {
         function(address, address, uint256, uint256) internal returns (bool) operation
     ) internal returns (bool) {
         return messageHash.processSplitClaimWithQualificationAndSponsorDomain(messageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
-    }
-
-    /**
-     * @notice Internal function for processing simple batch claims with local domain
-     * signatures. Extracts batch claim parameters from calldata, validates the claim,
-     * and executes operations for multiple resource locks to a single recipient. Uses
-     * the message hash itself as the qualification message and a zero sponsor domain
-     * separator.
-     * @param messageHash      The EIP-712 hash of the claim message.
-     * @param calldataPointer  Pointer to the location of the associated struct in calldata.
-     * @param offsetToId       Offset to segment of calldata where relevant claim parameters begin.
-     * @param typehash         The EIP-712 typehash used for the claim message.
-     * @param domainSeparator  The local domain separator.
-     * @param operation        Function pointer to either _release or _withdraw for executing the claim.
-     * @return                 Whether the batch claim was successfully processed.
-     */
-    function processSimpleBatchClaim(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processBatchClaimWithQualificationAndSponsorDomain(messageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
-    }
-
-    /**
-     * @notice Internal function for processing batch claims with qualification messages.
-     * Extracts batch claim parameters from calldata, validates the claim using the provided
-     * qualification message, and executes operations for multiple resource locks to a single
-     * recipient. Uses a zero sponsor domain separator.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @return                         Whether the batch claim was successfully processed.
-     */
-    function processBatchClaimWithQualification(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processBatchClaimWithQualificationAndSponsorDomain(qualificationMessageHash, calldataPointer, offsetToId, bytes32(0).asStubborn(), typehash, domainSeparator, operation);
     }
 
     /**
@@ -489,32 +409,6 @@ library ClaimProcessorLib {
         function(address, address, uint256, uint256) internal returns (bool) operation
     ) internal returns (bool) {
         return messageHash.processSplitClaimWithQualificationAndSponsorDomain(messageHash, calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator, operation);
-    }
-
-    /**
-     * @notice Internal function for processing batch claims with sponsor domain signatures.
-     * Extracts batch claim parameters from calldata, validates the claim using the provided
-     * sponsor domain, and executes operations for multiple resource locks to a single
-     * recipient. Uses the message hash itself as the qualification message.
-     * @param messageHash      The EIP-712 hash of the claim message.
-     * @param calldataPointer  Pointer to the location of the associated struct in calldata.
-     * @param offsetToId       Offset to segment of calldata where relevant claim parameters begin.
-     * @param sponsorDomain    The domain separator for the sponsor's signature.
-     * @param typehash         The EIP-712 typehash used for the claim message.
-     * @param domainSeparator  The local domain separator.
-     * @param operation        Function pointer to either _release or _withdraw for executing the claim.
-     * @return                 Whether the batch claim was successfully processed.
-     */
-    function processBatchClaimWithSponsorDomain(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomain,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processBatchClaimWithQualificationAndSponsorDomain(messageHash, calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator, operation);
     }
 
     /**

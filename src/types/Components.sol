@@ -16,12 +16,6 @@ struct TransferComponent {
     uint256 amount; // The token amount to transfer or withdraw.
 }
 
-struct BatchClaimComponent {
-    uint256 id; // The token ID of the ERC6909 token to allocate.
-    uint256 allocatedAmount; // The original allocated amount of ERC6909 tokens.
-    uint256 amount; // The claimed token amount; specified by the arbiter.
-}
-
 struct SplitBatchClaimComponent {
     uint256 id; // The token ID of the ERC6909 token to allocate.
     uint256 allocatedAmount; // The original allocated amount of ERC6909 tokens.

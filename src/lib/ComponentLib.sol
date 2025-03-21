@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import { SplitTransfer } from "../types/Claims.sol";
 import { BatchTransfer, SplitBatchTransfer } from "../types/BatchClaims.sol";
 
-import { TransferComponent, SplitComponent, SplitByIdComponent, BatchClaimComponent, SplitBatchClaimComponent } from "../types/Components.sol";
+import { TransferComponent, SplitComponent, SplitByIdComponent, SplitBatchClaimComponent } from "../types/Components.sol";
 
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { EventLib } from "./EventLib.sol";
@@ -163,85 +163,6 @@ library ComponentLib {
 
         // Process each split component, verifying total amount and executing operations.
         return components.verifyAndProcessSplitComponents(sponsor, id, allocatedAmount, operation);
-    }
-
-    /**
-     * @notice Internal function for processing qualified batch claims with potentially exogenous
-     * sponsor signatures. Extracts batch claim parameters from calldata, validates the claim,
-     * executes operations, and performs optimized validation of allocator consistency, amounts,
-     * and scopes. If any validation fails, all operations are reverted after explicitly
-     * identifying the specific validation failures.
-     * @param messageHash              The EIP-712 hash of the claim message.
-     * @param qualificationMessageHash The EIP-712 hash of the allocator's qualification message.
-     * @param calldataPointer          Pointer to the location of the associated struct in calldata.
-     * @param offsetToId               Offset to segment of calldata where relevant claim parameters begin.
-     * @param sponsorDomainSeparator   The domain separator for the sponsor's signature, or zero for non-exogenous claims.
-     * @param typehash                 The EIP-712 typehash used for the claim message.
-     * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
-     * @param validation               Function pointer to the _validate function.
-     * @return                         Whether the batch claim was successfully processed.
-     */
-    function processClaimWithBatchComponents(
-        bytes32 messageHash,
-        bytes32 qualificationMessageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomainSeparator,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation,
-        function(bytes32, uint96, bytes32, uint256, bytes32, bytes32, bytes32) internal returns (address) validation
-    ) internal returns (bool) {
-        // Declare variables for parameters that will be extracted from calldata.
-        BatchClaimComponent[] calldata claims;
-        address claimant;
-
-        assembly ("memory-safe") {
-            // Calculate pointer to claim parameters using provided offset.
-            let calldataPointerWithOffset := add(calldataPointer, offsetToId)
-
-            // Extract array of batch claim components and claimant address.
-            let claimsPtr := add(calldataPointer, calldataload(calldataPointerWithOffset))
-            claims.offset := add(0x20, claimsPtr)
-            claims.length := calldataload(claimsPtr)
-            claimant := calldataload(add(calldataPointerWithOffset, 0x20))
-        }
-
-        // Extract allocator id from first claim for validation.
-        uint96 firstAllocatorId = claims[0].id.toAllocatorId();
-
-        // Validate the claim and extract the sponsor address.
-        address sponsor = validation(messageHash, firstAllocatorId, qualificationMessageHash, calldataPointer, domainSeparator, sponsorDomainSeparator, typehash);
-
-        // Revert if the batch is empty.
-        uint256 totalClaims = claims.length;
-
-        // Process first claim and initialize error tracking.
-        // NOTE: many of the bounds checks on these array accesses can be skipped as an optimization
-        BatchClaimComponent calldata component = claims[0];
-        uint256 id = component.id;
-        uint256 amount = component.amount;
-        uint256 errorBuffer = (totalClaims == 0).or(component.allocatedAmount.allocationExceededOrScopeNotMultichain(amount, id, sponsorDomainSeparator)).asUint256();
-
-        // Execute transfer or withdrawal for first claim.
-        operation(sponsor, claimant, id, amount);
-
-        unchecked {
-            // Process remaining claims while accumulating potential errors.
-            for (uint256 i = 1; i < totalClaims; ++i) {
-                component = claims[i];
-                id = component.id;
-                amount = component.amount;
-                errorBuffer |= (id.toAllocatorId() != firstAllocatorId).or(component.allocatedAmount.allocationExceededOrScopeNotMultichain(amount, id, sponsorDomainSeparator)).asUint256();
-
-                operation(sponsor, claimant, id, amount);
-            }
-
-            _revertWithInvalidBatchAllocationIfError(errorBuffer);
-        }
-
-        return true;
     }
 
     /**
