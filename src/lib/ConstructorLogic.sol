@@ -106,7 +106,7 @@ contract ConstructorLogic is Tstorish {
      * updating it if the chain ID has changed since deployment.
      * @return The current domain separator.
      */
-    function _domainSeparator() internal view returns (bytes32) {
+    function _domainSeparator() internal view virtual returns (bytes32) {
         return _INITIAL_DOMAIN_SEPARATOR.toLatest(_INITIAL_CHAIN_ID);
     }
 

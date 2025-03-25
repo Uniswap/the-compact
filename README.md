@@ -40,7 +40,7 @@ $ forge test
 ```
 
 ## Usage
-Version 0 of The Compact is currently deployed on mainnet, Sepolia, Unichain testnet, Base, and Base Sepolia at `0x00000000000018DF021Ff2467dF97ff846E09f48`. As long as the prerequisite deployer contract and Permit2 are deployed to a given chain, The Compact can be deployed to any new chain by running `forge script script/TheCompact.s.sol`.
+Version 0 of The Compact is currently deployed on mainnet, Sepolia, Unichain, Unichain Sepolia, Optimism, OP Sepolia, Base, and Base Sepolia at `0x00000000000018DF021Ff2467dF97ff846E09f48`. As long as the prerequisite deployer contract and Permit2 are deployed to a given chain, The Compact can be deployed to any new chain by running `forge script script/TheCompact.s.sol`.
 
 ### 1) Register an Allocator
 To begin using The Compact, an allocator must first be registered on the contract. Anyone can register any account as an allocator by calling the `__register` function as long as one of the following requirements are met:
