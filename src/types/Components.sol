@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+// TODO: Doc
+// The claimant id is the Lock identifier + destination address.
+
 struct SplitComponent {
-    address claimant; // The recipient of the transfer or withdrawal.
+    uint256 claimantId; // The claimantId of the transfer or withdrawal.
     uint256 amount; // The amount of tokens to transfer or withdraw.
 }
 

@@ -12,6 +12,7 @@ import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.so
 
 import { HashLib } from "../src/lib/HashLib.sol";
 import { IdLib } from "../src/lib/IdLib.sol";
+import { Lock } from "../src/types/Lock.sol";
 
 import { AlwaysOKAllocator } from "../src/test/AlwaysOKAllocator.sol";
 import { SimpleAllocator } from "../src/examples/allocator/SimpleAllocator.sol";
@@ -35,6 +36,8 @@ interface ImmutableCreate2Factory {
 }
 
 contract TheCompactTest is Test {
+    event Transfer(address by, address indexed from, address indexed to, uint256 indexed id, uint256 amount);
+
     TheCompact public theCompact;
     MockERC20 public token;
     MockERC20 public anotherToken;
@@ -482,7 +485,7 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        BasicTransfer memory transfer = BasicTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, id: id, amount: amount, recipient: recipient });
+        BasicTransfer memory transfer = BasicTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, id: id, amount: amount, recipient: IdLib.withReplacedAddress(id, recipient) });
 
         vm.prank(swapper);
         bool status = theCompact.allocatedTransfer(transfer);
@@ -524,9 +527,9 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -574,7 +577,8 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, qualifiedDigest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        BasicTransfer memory transfer = BasicTransfer({ nonce: nonce, expires: expiration, allocatorData: abi.encode(allocatorData, qualificationArgument), id: id, amount: amount, recipient: recipient });
+        BasicTransfer memory transfer =
+            BasicTransfer({ nonce: nonce, expires: expiration, allocatorData: abi.encode(allocatorData, qualificationArgument), id: id, amount: amount, recipient: IdLib.withReplacedAddress(id, recipient) });
 
         vm.prank(swapper);
         bool status = theCompact.allocatedTransfer(transfer);
@@ -635,18 +639,23 @@ contract TheCompactTest is Test {
         transfers[0] = TransferComponent({ id: idOne, amount: amountOne });
         transfers[1] = TransferComponent({ id: idTwo, amount: amountTwo });
 
-        BatchTransfer memory transfer = BatchTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, transfers: transfers, recipient: recipient });
+        BatchTransfer memory transfer = BatchTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, transfers: transfers, recipient: IdLib.withReplacedAddress(idOne, recipient) });
 
         vm.prank(swapper);
         bool status = theCompact.allocatedTransfer(transfer);
         vm.snapshotGasLastCall("batchTransfer");
         assert(status);
 
+        // Note: The interface only allows providing a single instance of the new
+        // resource locks. As a result, we need to manually derive what the expected
+        // next id is.
+        uint256 idTwoNext = IdLib.withReplacedAddress(idOne, IdLib.toToken(idTwo));
+
         assertEq(token.balanceOf(recipient), 0);
         assertEq(theCompact.balanceOf(swapper, idOne), 0);
         assertEq(theCompact.balanceOf(swapper, idTwo), 0);
         assertEq(theCompact.balanceOf(recipient, idOne), amountOne);
-        assertEq(theCompact.balanceOf(recipient, idTwo), amountTwo);
+        assertEq(theCompact.balanceOf(recipient, idTwoNext), amountTwo);
     }
 
     function test_splitWithdrawal() public {
@@ -678,9 +687,9 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: uint256(uint160(recipientOne)), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: uint256(uint160(recipientTwo)), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -689,7 +698,7 @@ contract TheCompactTest is Test {
         SplitTransfer memory transfer = SplitTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, id: id, recipients: recipients });
 
         vm.prank(swapper);
-        bool status = theCompact.allocatedWithdrawal(transfer);
+        bool status = theCompact.allocatedTransfer(transfer);
         vm.snapshotGasLastCall("splitWithdrawal");
         assert(status);
 
@@ -749,10 +758,10 @@ contract TheCompactTest is Test {
         transfers[0] = TransferComponent({ id: idOne, amount: amountOne });
         transfers[1] = TransferComponent({ id: idTwo, amount: amountTwo });
 
-        BatchTransfer memory transfer = BatchTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, transfers: transfers, recipient: recipient });
+        BatchTransfer memory transfer = BatchTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, transfers: transfers, recipient: uint256(uint160(recipient)) });
 
         vm.prank(swapper);
-        bool status = theCompact.allocatedWithdrawal(transfer);
+        bool status = theCompact.allocatedTransfer(transfer);
         vm.snapshotGasLastCall("batchWithdrawal");
         assert(status);
 
@@ -815,11 +824,11 @@ contract TheCompactTest is Test {
         SplitByIdComponent[] memory transfers = new SplitByIdComponent[](2);
 
         SplitComponent[] memory portionsOne = new SplitComponent[](1);
-        portionsOne[0] = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        portionsOne[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(idOne, recipientOne), amount: amountOne });
 
         SplitComponent[] memory portionsTwo = new SplitComponent[](2);
-        portionsTwo[0] = SplitComponent({ claimant: recipientOne, amount: amountTwo });
-        portionsTwo[1] = SplitComponent({ claimant: recipientTwo, amount: amountThree });
+        portionsTwo[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(idTwo, recipientOne), amount: amountTwo });
+        portionsTwo[1] = SplitComponent({ claimantId: IdLib.withReplacedAddress(idTwo, recipientTwo), amount: amountThree });
 
         transfers[0] = SplitByIdComponent({ id: idOne, portions: portionsOne });
         transfers[1] = SplitByIdComponent({ id: idTwo, portions: portionsTwo });
@@ -866,10 +875,10 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        BasicTransfer memory transfer = BasicTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, id: id, amount: amount, recipient: recipient });
+        BasicTransfer memory transfer = BasicTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, id: id, amount: amount, recipient: uint256(uint160(recipient)) });
 
         vm.prank(swapper);
-        bool status = theCompact.allocatedWithdrawal(transfer);
+        bool status = theCompact.allocatedTransfer(transfer);
         vm.snapshotGasLastCall("basicWithdrawal");
         assert(status);
 
@@ -928,11 +937,11 @@ contract TheCompactTest is Test {
         SplitByIdComponent[] memory transfers = new SplitByIdComponent[](2);
 
         SplitComponent[] memory portionsOne = new SplitComponent[](1);
-        portionsOne[0] = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        portionsOne[0] = SplitComponent({ claimantId: uint256(uint160(recipientOne)), amount: amountOne });
 
         SplitComponent[] memory portionsTwo = new SplitComponent[](2);
-        portionsTwo[0] = SplitComponent({ claimant: recipientOne, amount: amountTwo });
-        portionsTwo[1] = SplitComponent({ claimant: recipientTwo, amount: amountThree });
+        portionsTwo[0] = SplitComponent({ claimantId: uint256(uint160(recipientOne)), amount: amountTwo });
+        portionsTwo[1] = SplitComponent({ claimantId: uint256(uint160(recipientTwo)), amount: amountThree });
 
         transfers[0] = SplitByIdComponent({ id: idOne, portions: portionsOne });
         transfers[1] = SplitByIdComponent({ id: idTwo, portions: portionsTwo });
@@ -940,7 +949,7 @@ contract TheCompactTest is Test {
         SplitBatchTransfer memory transfer = SplitBatchTransfer({ nonce: nonce, expires: expiration, allocatorData: allocatorData, transfers: transfers });
 
         vm.prank(swapper);
-        bool status = theCompact.allocatedWithdrawal(transfer);
+        bool status = theCompact.allocatedTransfer(transfer);
         vm.snapshotGasLastCall("splitBatchWithdrawal");
         assert(status);
 
@@ -989,9 +998,9 @@ contract TheCompactTest is Test {
         (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -1060,9 +1069,9 @@ contract TheCompactTest is Test {
         (r, vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(0, recipientOne), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(0, recipientTwo), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -1071,7 +1080,7 @@ contract TheCompactTest is Test {
         Claim memory claim = Claim(allocatorData, sponsorSignature, swapper, nonce, expires, witness, witnessTypestring, id, amount, recipients);
 
         vm.prank(arbiter);
-        (bytes32 returnedClaimHash) = theCompact.claimAndWithdraw(claim);
+        (bytes32 returnedClaimHash) = theCompact.claim(claim);
         vm.snapshotGasLastCall("claimAndWithdraw");
         assertEq(returnedClaimHash, claimHash);
 
@@ -1163,9 +1172,9 @@ contract TheCompactTest is Test {
         (r, vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -1228,9 +1237,9 @@ contract TheCompactTest is Test {
         (r, vs) = vm.signCompact(allocatorPrivateKey, digest);
         bytes memory allocatorData = abi.encodePacked(r, vs);
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -1250,6 +1259,85 @@ contract TheCompactTest is Test {
 
         assertEq(theCompact.balanceOf(recipientOne, id), amountOne);
         assertEq(theCompact.balanceOf(recipientTwo, id), amountTwo);
+    }
+
+    function test_splitClaimWithWitnessAndLockConversion() public {
+        ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
+        Scope scope = Scope.Multichain;
+        uint256 amount = 1e18;
+        uint256 nonce = 0;
+        uint256 expires = block.timestamp + 1000;
+        address arbiter = 0x2222222222222222222222222222222222222222;
+        address recipientOne = 0x1111111111111111111111111111111111111111;
+        address recipientTwo = 0x3333333333333333333333333333333333333333;
+        uint256 amountOne = 4e17;
+        uint256 amountTwo = 6e17;
+
+        vm.prank(allocator);
+        theCompact.__registerAllocator(allocator, "");
+
+        theCompact.__registerAllocator(alwaysOKAllocator, "");
+
+        vm.prank(swapper);
+        uint256 id = theCompact.deposit{ value: amount }(allocator, resetPeriod, scope, swapper);
+        assertEq(theCompact.balanceOf(swapper, id), amount);
+
+        uint256 newLockId = IdLib.toId(Lock({ token: address(0), allocator: alwaysOKAllocator, resetPeriod: ResetPeriod.OneHourAndFiveMinutes, scope: Scope.ChainSpecific }));
+
+        string memory witnessTypestring = "Witness witness)Witness(uint256 witnessArgument)";
+        uint256 witnessArgument = 234;
+        bytes32 witness = keccak256(abi.encode(witnessArgument));
+
+        bytes32 claimHash = keccak256(
+            abi.encode(
+                keccak256("Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount,Witness witness)Witness(uint256 witnessArgument)"),
+                arbiter,
+                swapper,
+                nonce,
+                expires,
+                id,
+                amount,
+                witness
+            )
+        );
+
+        bytes32 digest = keccak256(abi.encodePacked(bytes2(0x1901), theCompact.DOMAIN_SEPARATOR(), claimHash));
+
+        (bytes32 r, bytes32 vs) = vm.signCompact(swapperPrivateKey, digest);
+        bytes memory sponsorSignature = abi.encodePacked(r, vs);
+
+        (r, vs) = vm.signCompact(allocatorPrivateKey, digest);
+        bytes memory allocatorSignature = abi.encodePacked(r, vs);
+
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
+
+        // Make the second component use the new allocator.
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(newLockId, recipientTwo), amount: amountTwo });
+
+        SplitComponent[] memory recipients = new SplitComponent[](2);
+        recipients[0] = splitOne;
+        recipients[1] = splitTwo;
+
+        Claim memory claim = Claim(allocatorSignature, sponsorSignature, swapper, nonce, expires, witness, witnessTypestring, id, amount, recipients);
+
+        vm.expectEmit();
+        emit Transfer(arbiter, swapper, address(0), id, amountTwo);
+
+        vm.expectEmit();
+        emit Transfer(arbiter, address(0), recipientTwo, newLockId, amountTwo);
+
+        vm.prank(arbiter);
+        (bytes32 returnedClaimHash) = theCompact.claim(claim);
+        vm.snapshotGasLastCall("splitClaimWithWitnessAndLockConversion");
+        assert(returnedClaimHash == claimHash);
+
+        assertEq(address(theCompact).balance, amount);
+        assertEq(recipientOne.balance, 0);
+        assertEq(recipientTwo.balance, 0);
+        assertEq(theCompact.balanceOf(swapper, id), 0);
+
+        assertEq(theCompact.balanceOf(recipientOne, id), amountOne);
+        assertEq(theCompact.balanceOf(recipientTwo, newLockId), amountTwo);
     }
 
     function test_batchDepositAndRegisterWithWitnessViaPermit2ThenClaim() public {
@@ -1373,14 +1461,14 @@ contract TheCompactTest is Test {
 
         SplitBatchClaimComponent[] memory claims = new SplitBatchClaimComponent[](3);
         SplitComponent[] memory portions = new SplitComponent[](2);
-        portions[0] = SplitComponent({ claimant: recipientOne, amount: amountOne });
-        portions[1] = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        portions[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
+        portions[1] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
         claims[0] = SplitBatchClaimComponent({ id: id, allocatedAmount: amount, portions: portions });
         SplitComponent[] memory anotherPortion = new SplitComponent[](1);
-        anotherPortion[0] = SplitComponent({ claimant: recipientOne, amount: anotherAmount });
+        anotherPortion[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: anotherAmount });
         claims[1] = SplitBatchClaimComponent({ id: anotherId, allocatedAmount: anotherAmount, portions: anotherPortion });
         SplitComponent[] memory aThirdPortion = new SplitComponent[](1);
-        aThirdPortion[0] = SplitComponent({ claimant: recipientTwo, amount: aThirdAmount });
+        aThirdPortion[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: aThirdAmount });
         claims[2] = SplitBatchClaimComponent({ id: aThirdId, allocatedAmount: aThirdAmount, portions: aThirdPortion });
 
         BatchClaim memory claim = BatchClaim(allocatorData, sponsorSignature, swapper, nonce, expires, witness, witnessTypestring, claims);
@@ -1462,14 +1550,14 @@ contract TheCompactTest is Test {
 
         SplitBatchClaimComponent[] memory claims = new SplitBatchClaimComponent[](3);
         SplitComponent[] memory portions = new SplitComponent[](2);
-        portions[0] = SplitComponent({ claimant: recipientOne, amount: amountOne });
-        portions[1] = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        portions[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
+        portions[1] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
         claims[0] = SplitBatchClaimComponent({ id: id, allocatedAmount: amount, portions: portions });
         SplitComponent[] memory anotherPortion = new SplitComponent[](1);
-        anotherPortion[0] = SplitComponent({ claimant: recipientOne, amount: anotherAmount });
+        anotherPortion[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: anotherAmount });
         claims[1] = SplitBatchClaimComponent({ id: anotherId, allocatedAmount: anotherAmount, portions: anotherPortion });
         SplitComponent[] memory aThirdPortion = new SplitComponent[](1);
-        aThirdPortion[0] = SplitComponent({ claimant: recipientTwo, amount: aThirdAmount });
+        aThirdPortion[0] = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: aThirdAmount });
         claims[2] = SplitBatchClaimComponent({ id: aThirdId, allocatedAmount: aThirdAmount, portions: aThirdPortion });
 
         BatchClaim memory claim = BatchClaim(allocatorData, sponsorSignature, swapper, nonce, expires, witness, witnessTypestring, claims);
@@ -1570,9 +1658,9 @@ contract TheCompactTest is Test {
         bytes32[] memory additionalChains = new bytes32[](1);
         additionalChains[0] = allocationHashTwo;
 
-        SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+        SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
 
-        SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+        SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
 
         SplitComponent[] memory recipients = new SplitComponent[](2);
         recipients[0] = splitOne;
@@ -1725,9 +1813,9 @@ contract TheCompactTest is Test {
         SplitComponent[] memory recipients = new SplitComponent[](2);
 
         {
-            SplitComponent memory splitOne = SplitComponent({ claimant: recipientOne, amount: amountOne });
+            SplitComponent memory splitOne = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: amountOne });
 
-            SplitComponent memory splitTwo = SplitComponent({ claimant: recipientTwo, amount: amountTwo });
+            SplitComponent memory splitTwo = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientTwo), amount: amountTwo });
 
             recipients[0] = splitOne;
             recipients[1] = splitTwo;
@@ -1780,7 +1868,7 @@ contract TheCompactTest is Test {
         additionalChains[0] = allocationHashOne;
 
         {
-            SplitComponent memory anotherSplit = SplitComponent({ claimant: recipientOne, amount: anotherAmount });
+            SplitComponent memory anotherSplit = SplitComponent({ claimantId: IdLib.withReplacedAddress(id, recipientOne), amount: anotherAmount });
 
             SplitComponent[] memory anotherRecipient = new SplitComponent[](1);
             anotherRecipient[0] = anotherSplit;

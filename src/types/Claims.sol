@@ -9,7 +9,7 @@ struct BasicTransfer {
     uint256 expires; // The time at which the transfer or withdrawal expires.
     uint256 id; // The token ID of the ERC6909 token to transfer or withdraw.
     uint256 amount; // The token amount to transfer or withdraw.
-    address recipient; // The recipient of the transfer or withdrawal.
+    uint256 recipient; // The recipient of the transfer or withdrawal.
 }
 
 struct SplitTransfer {

@@ -220,13 +220,36 @@ library IdLib {
     }
 
     /**
+     * @notice Internal pure function for extracting the address of the
+     * underlying recipient from a claimantId.
+     * @param id The claimant ID to extract from.
+     * @return   The underlying token address.
+     */
+    function toRecipient(uint256 id) internal pure returns (address) {
+        return id.asSanitizedAddress();
+    }
+
+    /**
+     * @notice Internal pure function for determining whether a
+     * claimant id is a withdrawal.
+     * @param id The claimant ID to extract from.
+     * @return b Whether the claimant id indicates a withdrawal.
+     */
+    function isWithdrawal(uint256 id) internal pure returns (bool b) {
+        assembly ("memory-safe") {
+            // Check if the leftmost 12 bytes are empty.
+            b := eq(shr(160, id), 0)
+        }
+    }
+
+    /**
      * @notice Internal pure function for creating a new resource lock ID with a
      * different token address.
      * @param id         The resource lock ID to modify.
      * @param token      The new token address.
      * @return updatedId The modified resource lock ID.
      */
-    function withReplacedToken(uint256 id, address token) internal pure returns (uint256 updatedId) {
+    function withReplacedAddress(uint256 id, address token) internal pure returns (uint256 updatedId) {
         assembly ("memory-safe") {
             updatedId := or(shl(160, shr(160, id)), shr(96, shl(96, token)))
         }

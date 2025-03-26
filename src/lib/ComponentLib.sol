@@ -45,7 +45,7 @@ library ComponentLib {
      * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function processSplitTransfer(SplitTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function processSplitTransfer(SplitTransfer calldata transfer, function(address, uint256, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
         // Process the transfer for each split component.
         _processSplitTransferComponents(transfer.recipients, transfer.id, operation);
 
@@ -60,12 +60,12 @@ library ComponentLib {
      * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function performBatchTransfer(BatchTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function performBatchTransfer(BatchTransfer calldata transfer, function(address, uint256, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
         // Navigate to the transfer components in calldata.
         TransferComponent[] calldata transfers = transfer.transfers;
 
         // Retrieve the recipient and the total number of components.
-        address recipient = transfer.recipient;
+        uint256 recipient = transfer.recipient;
         uint256 totalTransfers = transfers.length;
 
         unchecked {
@@ -89,7 +89,7 @@ library ComponentLib {
      * @param transfer  A SplitBatchTransfer struct containing split batch transfer details.
      * @param operation Function pointer to either _release or _withdraw for executing the claim.
      */
-    function performSplitBatchTransfer(SplitBatchTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal {
+    function performSplitBatchTransfer(SplitBatchTransfer calldata transfer, function(address, uint256, uint256, uint256) internal returns (bool) operation) internal {
         // Navigate to the split batch components array in calldata.
         SplitByIdComponent[] calldata transfers = transfer.transfers;
 
@@ -130,7 +130,7 @@ library ComponentLib {
         bytes32 sponsorDomainSeparator,
         bytes32 typehash,
         bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation,
+        function(address, uint256, uint256, uint256) internal returns (bool) operation,
         function(bytes32, uint96, uint256, bytes32, bytes32, bytes32, uint256[2][] memory) internal returns (address) validation
     ) internal returns (bool) {
         // Declare variables for parameters that will be extracted from calldata.
@@ -189,7 +189,7 @@ library ComponentLib {
         bytes32 sponsorDomainSeparator,
         bytes32 typehash,
         bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation,
+        function(address, uint256, uint256, uint256) internal returns (bool) operation,
         function(bytes32, uint96, uint256, bytes32, bytes32, bytes32, uint256[2][] memory) internal returns (address) validation
     ) internal returns (bool) {
         // Declare variable for SplitBatchClaimComponent array that will be extracted from calldata.
@@ -260,7 +260,7 @@ library ComponentLib {
         address sponsor,
         uint256 id,
         uint256 allocatedAmount,
-        function(address, address, uint256, uint256) internal returns (bool) operation
+        function(address, uint256, uint256, uint256) internal returns (bool) operation
     ) internal returns (bool) {
         // Initialize tracking variables.
         uint256 totalClaims = claimants.length;
@@ -279,7 +279,7 @@ library ComponentLib {
                 spentAmount = updatedSpentAmount;
 
                 // Execute transfer or withdrawal for the split component.
-                operation(sponsor, component.claimant, id, amount);
+                operation(sponsor, component.claimantId, id, amount);
             }
         }
 
@@ -331,7 +331,7 @@ library ComponentLib {
      * @param id         The ERC6909 token identifier of the resource lock.
      * @param operation  Function pointer to either _release or _withdraw for executing the claim.
      */
-    function _processSplitTransferComponents(SplitComponent[] calldata recipients, uint256 id, function(address, address, uint256, uint256) internal returns (bool) operation) private {
+    function _processSplitTransferComponents(SplitComponent[] calldata recipients, uint256 id, function(address, uint256, uint256, uint256) internal returns (bool) operation) private {
         // Retrieve the total number of components.
         uint256 totalSplits = recipients.length;
 
@@ -342,7 +342,7 @@ library ComponentLib {
                 SplitComponent calldata component = recipients[i];
 
                 // Perform the transfer or withdrawal for the portion.
-                operation(msg.sender, component.claimant, id, component.amount);
+                operation(msg.sender, component.claimantId, id, component.amount);
             }
         }
     }

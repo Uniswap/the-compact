@@ -50,10 +50,9 @@ contract TransferLogic is SharedLogic {
      * Validates the allocator signature, checks expiration, consumes the nonce, and executes
      * the transfer or withdrawal operation for a single recipient.
      * @param transfer  A BasicTransfer struct containing signature, nonce, expiry, and transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer or withdrawal was successfully processed.
      */
-    function _processBasicTransfer(BasicTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function _processBasicTransfer(BasicTransfer calldata transfer) internal returns (bool) {
         // Set the reentrancy guard.
         _setReentrancyGuard();
 
@@ -64,7 +63,7 @@ contract TransferLogic is SharedLogic {
         _notExpiredAndAuthorizedByAllocator(transfer.toClaimHash(), transfer.id.toRegisteredAllocatorWithConsumed(transfer.nonce), transfer, idsAndAmounts);
 
         // Perform the transfer or withdrawal.
-        operation(msg.sender, transfer.recipient, transfer.id, transfer.amount);
+        _releaseOrWithdraw(msg.sender, transfer.recipient, transfer.id, transfer.amount);
 
         // Clear the reentancy guard.
         _clearReentrancyGuard();
@@ -77,10 +76,9 @@ contract TransferLogic is SharedLogic {
      * allocator signature, checks expiration, consumes the nonce, and executes the transfer
      * or withdrawal operation targeting multiple recipients from a single resource lock.
      * @param transfer  A SplitTransfer struct containing signature, nonce, expiry, and split transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function _processSplitTransfer(SplitTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function _processSplitTransfer(SplitTransfer calldata transfer) internal returns (bool) {
         // Set the reentrancy guard.
         _setReentrancyGuard();
 
@@ -91,7 +89,7 @@ contract TransferLogic is SharedLogic {
         _notExpiredAndAuthorizedByAllocator.usingSplitTransfer()(transfer.toClaimHash(), transfer.id.toRegisteredAllocatorWithConsumed(transfer.nonce), transfer, idsAndAmounts);
 
         // Perform the split transfers or withdrawals.
-        transfer.processSplitTransfer(operation);
+        transfer.processSplitTransfer(_releaseOrWithdraw);
 
         // Clear the reentancy guard.
         _clearReentrancyGuard();
@@ -105,10 +103,9 @@ contract TransferLogic is SharedLogic {
      * across all resource locks, and executes the transfer or withdrawal operation for a single
      * recipient from multiple resource locks.
      * @param transfer  A BatchTransfer struct containing signature, nonce, expiry, and batch transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function _processBatchTransfer(BatchTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function _processBatchTransfer(BatchTransfer calldata transfer) internal returns (bool) {
         // Set the reentrancy guard.
         _setReentrancyGuard();
 
@@ -133,7 +130,7 @@ contract TransferLogic is SharedLogic {
         );
 
         // Perform the batch transfers or withdrawals.
-        transfer.performBatchTransfer(operation);
+        transfer.performBatchTransfer(_releaseOrWithdraw);
 
         // Clear the reentancy guard.
         _clearReentrancyGuard();
@@ -147,10 +144,9 @@ contract TransferLogic is SharedLogic {
      * allocator across all resource locks, and executes the transfer or withdrawal operation
      * for multiple recipients from multiple resource locks.
      * @param transfer  A SplitBatchTransfer struct containing signature, nonce, expiry, and split batch transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function _processSplitBatchTransfer(SplitBatchTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function _processSplitBatchTransfer(SplitBatchTransfer calldata transfer) internal returns (bool) {
         // Set the reentrancy guard.
         _setReentrancyGuard();
 
@@ -178,7 +174,7 @@ contract TransferLogic is SharedLogic {
         );
 
         // Perform the split batch transfers or withdrawals.
-        transfer.performSplitBatchTransfer(operation);
+        transfer.performSplitBatchTransfer(_releaseOrWithdraw);
 
         // Clear the reentancy guard.
         _clearReentrancyGuard();

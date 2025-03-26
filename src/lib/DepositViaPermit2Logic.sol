@@ -510,7 +510,7 @@ contract DepositViaPermit2Logic is DepositLogic {
             for (uint256 i = 0; i < totalTokensLessInitialNative; ++i) {
                 // Retrieve the token and derive the candidate id.
                 token = permitted[i + firstUnderlyingTokenIsNative.asUint256()].token;
-                candidateId = id.withReplacedToken(token);
+                candidateId = id.withReplacedAddress(token);
 
                 // Set the error buffer if the candidate id is less than or equal to the current id.
                 errorBuffer |= (candidateId <= id).asUint256();

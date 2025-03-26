@@ -108,7 +108,7 @@ contract WithdrawalLogic is SharedLogic {
         }
 
         // Process the withdrawal.
-        return _withdraw(msg.sender, recipient, id, amount);
+        return _withdraw(msg.sender, uint256(uint160(recipient)), id, amount);
     }
 
     /**
