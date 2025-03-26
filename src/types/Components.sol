@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 struct SplitComponent {
-    address claimant; // The recipient of the transfer or withdrawal.
+    uint256 claimant; // The lockTag + recipient of the transfer or withdrawal.
     uint256 amount; // The amount of tokens to transfer or withdraw.
 }
 

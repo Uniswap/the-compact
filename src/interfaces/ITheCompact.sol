@@ -309,120 +309,34 @@ interface ITheCompact {
     ) external payable returns (uint256[] memory ids);
 
     /**
-     * @notice Transfers ERC6909 tokens to a single recipient with allocator approval.
-     * @param transfer A BasicTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the transfer cannot be executed.
-     *  -  id                 The ERC6909 token identifier of the resource lock.
-     *  -  amount             The amount of tokens to transfer.
-     *  -  recipient          The account that will receive the tokens.
-     * @return Whether the transfer was successful.
-     */
-    function allocatedTransfer(BasicTransfer calldata transfer) external returns (bool);
-
-    /**
-     * @notice Withdraws underlying tokens to a single recipient with allocator approval.
-     * @param withdrawal A BasicTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the withdrawal cannot be executed.
-     *  -  id                 The ERC6909 token identifier of the resource lock.
-     *  -  amount             The amount of tokens to withdraw.
-     *  -  recipient          The account that will receive the tokens.
-     * @return                Whether the withdrawal was successful.
-     */
-    function allocatedWithdrawal(BasicTransfer calldata withdrawal) external returns (bool);
-
-    /**
-     * @notice Transfers ERC6909 tokens to multiple recipients with allocator approval.
+     * @notice Transfers or withdraws ERC6909 tokens to multiple recipients with allocator approval.
      * @param transfer A SplitTransfer struct containing the following:
      *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the transfer cannot be executed.
-     *  -  id                 The ERC6909 token identifier of the resource lock.
-     *  -  recipients         Array of SplitComponents, each containing:
-     *     -  claimant        The account that will receive tokens.
-     *     -  amount          The amount of tokens the claimant will receive.
-     * @return Whether the transfer was successful.
+     *  -  nonce         Parameter enforcing replay protection, scoped to the allocator.
+     *  -  expires       Timestamp after which the transfer cannot be executed.
+     *  -  id            The ERC6909 token identifier of the resource lock.
+     *  -  recipients    Array of SplitComponents, each containing:
+     *     -  claimant   The account that will receive tokens.
+     *     -  amount     The amount of tokens the claimant will receive.
+     * @return Whether the transfer or withdrawal was successful.
      */
     function allocatedTransfer(SplitTransfer calldata transfer) external returns (bool);
 
     /**
-     * @notice Withdraws underlying tokens to multiple recipients with allocator approval.
-     * @param withdrawal A SplitTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the withdrawal cannot be executed.
-     *  -  id                 The ERC6909 token identifier of the resource lock.
-     *  -  recipients         Array of SplitComponents, each containing:
-     *     -  claimant        The account that will receive tokens.
-     *     -  amount          The amount of tokens the claimant will receive.
-     * @return Whether the withdrawal was successful.
-     */
-    function allocatedWithdrawal(SplitTransfer calldata withdrawal) external returns (bool);
-
-    /**
-     * @notice Transfers ERC6909 tokens from multiple resource locks to a single recipient with
-     * allocator approval.
-     * @param transfer A BatchTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the transfer cannot be executed.
-     *  -  transfers          Array of TransferComponents, each containing:
-     *     -  id              The ERC6909 token identifier of the resource lock.
-     *     -  amount          The amount of tokens to transfer.
-     *  -  recipient          The account that will receive all tokens.
-     * @return                Whether the transfer was successful.
-     */
-    function allocatedTransfer(BatchTransfer calldata transfer) external returns (bool);
-
-    /**
-     * @notice Withdraws underlying tokens from multiple resource locks to a single recipient
-     * with allocator approval.
-     * @param withdrawal A BatchTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the withdrawal cannot be executed.
-     *  -  transfers          Array of TransferComponents, each containing:
-     *     -  id              The ERC6909 token identifier of the resource lock.
-     *     -  amount          The amount of tokens to withdraw.
-     *  -  recipient          The account that will receive all tokens.
-     * @return                Whether the withdrawal was successful.
-     */
-    function allocatedWithdrawal(BatchTransfer calldata withdrawal) external returns (bool);
-
-    /**
-     * @notice Transfers ERC6909 tokens from multiple resource locks to multiple recipients
-     * with allocator approval.
+     * @notice Transfers or withdraws ERC6909 tokens from multiple resource locks to multiple
+     *         recipients with allocator approval.
      * @param transfer A SplitBatchTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the transfer cannot be executed.
-     *  -  transfers          Array of SplitByIdComponents, each containing:
-     *     -  id              The ERC6909 token identifier of the resource lock.
-     *     -  portions        Array of SplitComponents, each containing:
-     *        -  claimant     The account that will receive tokens.
-     *        -  amount       The amount of tokens the claimant will receive.
-     * @return                Whether the transfer was successful.
+     *  -  allocatorData  Authorization signature from the allocator.
+     *  -  nonce          Parameter enforcing replay protection, scoped to the allocator.
+     *  -  expires        Timestamp after which the transfer cannot be executed.
+     *  -  transfers      Array of SplitByIdComponents, each containing:
+     *     -  id          The ERC6909 token identifier of the resource lock.
+     *     -  portions    Array of SplitComponents, each containing:
+     *        -  claimant The account that will receive tokens.
+     *        -  amount   The amount of tokens the claimant will receive.
+     * @return            Whether the transfer was successful.
      */
     function allocatedTransfer(SplitBatchTransfer calldata transfer) external returns (bool);
-
-    /**
-     * @notice Withdraws underlying tokens from multiple resource locks to multiple recipients
-     * with allocator approval.
-     * @param withdrawal A SplitBatchTransfer struct containing the following:
-     *  -  allocatorData Authorization signature from the allocator.
-     *  -  nonce              Parameter enforcing replay protection, scoped to the allocator.
-     *  -  expires            Timestamp after which the withdrawal cannot be executed.
-     *  -  transfers          Array of SplitByIdComponents, each containing:
-     *     -  id              The ERC6909 token identifier of the resource lock.
-     *     -  portions        Array of SplitComponents, each containing:
-     *        -  claimant     The account that will receive tokens.
-     *        -  amount       The amount of tokens the claimant will receive.
-     * @return                Whether the withdrawal was successful.
-     */
-    function allocatedWithdrawal(SplitBatchTransfer calldata withdrawal) external returns (bool);
 
     /**
      * @notice External function to initiate a forced withdrawal for a resource lock. Once

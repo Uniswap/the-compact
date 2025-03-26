@@ -127,36 +127,12 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         return _depositBatchAndRegisterViaPermit2(depositor, permitted, resetPeriod, claimHash, compactCategory, witness, signature);
     }
 
-    function allocatedTransfer(BasicTransfer calldata transfer) external returns (bool) {
-        return _processBasicTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(BasicTransfer calldata withdrawal) external returns (bool) {
-        return _processBasicTransfer(withdrawal, _withdraw);
-    }
-
     function allocatedTransfer(SplitTransfer calldata transfer) external returns (bool) {
-        return _processSplitTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(SplitTransfer calldata withdrawal) external returns (bool) {
-        return _processSplitTransfer(withdrawal, _withdraw);
-    }
-
-    function allocatedTransfer(BatchTransfer calldata transfer) external returns (bool) {
-        return _processBatchTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(BatchTransfer calldata withdrawal) external returns (bool) {
-        return _processBatchTransfer(withdrawal, _withdraw);
+        return _processSplitTransfer(transfer);
     }
 
     function allocatedTransfer(SplitBatchTransfer calldata transfer) external returns (bool) {
-        return _processSplitBatchTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(SplitBatchTransfer calldata withdrawal) external returns (bool) {
-        return _processSplitBatchTransfer(withdrawal, _withdraw);
+        return _processSplitBatchTransfer(transfer);
     }
 
     function enableForcedWithdrawal(uint256 id) external returns (uint256) {

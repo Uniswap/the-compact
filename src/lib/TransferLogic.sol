@@ -11,7 +11,7 @@ import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { EventLib } from "./EventLib.sol";
 import { TransferFunctionCastLib } from "./TransferFunctionCastLib.sol";
 import { IdLib } from "./IdLib.sol";
-import { SharedLogic } from "./SharedLogic.sol";
+import { ConstructorLogic } from "./ConstructorLogic.sol";
 import { ValidityLib } from "./ValidityLib.sol";
 import { AllocatorLib } from "./AllocatorLib.sol";
 
@@ -23,7 +23,7 @@ import { AllocatorLib } from "./AllocatorLib.sol";
  * construct the authorizing Compact or BatchCompact payload, the arbiter is set as the
  * sponsor.
  */
-contract TransferLogic is SharedLogic {
+contract TransferLogic is ConstructorLogic {
     using ClaimHashLib for BasicTransfer;
     using ClaimHashLib for SplitTransfer;
     using ClaimHashLib for BatchTransfer;
@@ -46,41 +46,13 @@ contract TransferLogic is SharedLogic {
     uint32 private constant _ATTEST_SELECTOR = 0x1a808f91;
 
     /**
-     * @notice Internal function for processing a basic allocated transfer or withdrawal.
-     * Validates the allocator signature, checks expiration, consumes the nonce, and executes
-     * the transfer or withdrawal operation for a single recipient.
-     * @param transfer  A BasicTransfer struct containing signature, nonce, expiry, and transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
-     * @return          Whether the transfer or withdrawal was successfully processed.
-     */
-    function _processBasicTransfer(BasicTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
-        // Set the reentrancy guard.
-        _setReentrancyGuard();
-
-        uint256[2][] memory idsAndAmounts = new uint256[2][](1);
-        idsAndAmounts[0] = [transfer.id, transfer.amount];
-
-        // Derive hash, validate expiry, consume nonce, and check allocator signature.
-        _notExpiredAndAuthorizedByAllocator(transfer.toClaimHash(), transfer.id.toRegisteredAllocatorWithConsumed(transfer.nonce), transfer, idsAndAmounts);
-
-        // Perform the transfer or withdrawal.
-        operation(msg.sender, transfer.recipient, transfer.id, transfer.amount);
-
-        // Clear the reentancy guard.
-        _clearReentrancyGuard();
-
-        return true;
-    }
-
-    /**
      * @notice Internal function for processing a split transfer or withdrawal. Validates the
      * allocator signature, checks expiration, consumes the nonce, and executes the transfer
      * or withdrawal operation targeting multiple recipients from a single resource lock.
      * @param transfer  A SplitTransfer struct containing signature, nonce, expiry, and split transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function _processSplitTransfer(SplitTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function _processSplitTransfer(SplitTransfer calldata transfer) internal returns (bool) {
         // Set the reentrancy guard.
         _setReentrancyGuard();
 
@@ -91,49 +63,7 @@ contract TransferLogic is SharedLogic {
         _notExpiredAndAuthorizedByAllocator.usingSplitTransfer()(transfer.toClaimHash(), transfer.id.toRegisteredAllocatorWithConsumed(transfer.nonce), transfer, idsAndAmounts);
 
         // Perform the split transfers or withdrawals.
-        transfer.processSplitTransfer(operation);
-
-        // Clear the reentancy guard.
-        _clearReentrancyGuard();
-
-        return true;
-    }
-
-    /**
-     * @notice Internal function for processing a batch transfer or withdrawal. Validates the
-     * allocator signature, checks expiration, consumes the nonce, ensures consistent allocator
-     * across all resource locks, and executes the transfer or withdrawal operation for a single
-     * recipient from multiple resource locks.
-     * @param transfer  A BatchTransfer struct containing signature, nonce, expiry, and batch transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
-     * @return          Whether the transfer was successfully processed.
-     */
-    function _processBatchTransfer(BatchTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
-        // Set the reentrancy guard.
-        _setReentrancyGuard();
-
-        // Navigate to the transfer components in calldata.
-        TransferComponent[] calldata transfers = transfer.transfers;
-        uint256 totalTransfers = transfers.length;
-        uint256[2][] memory idsAndAmounts = new uint256[2][](totalTransfers);
-
-        unchecked {
-            // Iterate over each component in calldata.
-            for (uint256 i = 0; i < totalTransfers; ++i) {
-                // Navigate to location of the component in calldata.
-                TransferComponent calldata component = transfers[i];
-
-                idsAndAmounts[i] = [component.id, component.amount];
-            }
-        }
-
-        // Derive hash, validate expiry, consume nonce, and check allocator signature.
-        _notExpiredAndAuthorizedByAllocator.usingBatchTransfer()(
-            transfer.toClaimHash(), _deriveConsistentAllocatorAndConsumeNonce(transfer.transfers, transfer.nonce, _allocatorIdOfTransferComponentId), transfer, idsAndAmounts
-        );
-
-        // Perform the batch transfers or withdrawals.
-        transfer.performBatchTransfer(operation);
+        transfer.processSplitTransfer();
 
         // Clear the reentancy guard.
         _clearReentrancyGuard();
@@ -147,10 +77,9 @@ contract TransferLogic is SharedLogic {
      * allocator across all resource locks, and executes the transfer or withdrawal operation
      * for multiple recipients from multiple resource locks.
      * @param transfer  A SplitBatchTransfer struct containing signature, nonce, expiry, and split batch transfer details.
-     * @param operation Function pointer to either _release or _withdraw for executing the claim.
      * @return          Whether the transfer was successfully processed.
      */
-    function _processSplitBatchTransfer(SplitBatchTransfer calldata transfer, function(address, address, uint256, uint256) internal returns (bool) operation) internal returns (bool) {
+    function _processSplitBatchTransfer(SplitBatchTransfer calldata transfer) internal returns (bool) {
         // Set the reentrancy guard.
         _setReentrancyGuard();
 
@@ -178,7 +107,7 @@ contract TransferLogic is SharedLogic {
         );
 
         // Perform the split batch transfers or withdrawals.
-        transfer.performSplitBatchTransfer(operation);
+        transfer.performSplitBatchTransfer();
 
         // Clear the reentancy guard.
         _clearReentrancyGuard();

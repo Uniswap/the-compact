@@ -114,19 +114,13 @@ library ClaimProcessorLib {
      * @param sponsorDomainSeparator   The domain separator for the sponsor's signature, or zero for non-exogenous claims.
      * @param typehash                 The EIP-712 typehash used for the claim message.
      * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
      * @return                         Whether the split claim was successfully processed.
      */
-    function processSplitClaimWithQualificationAndSponsorDomain(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomainSeparator,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processClaimWithSplitComponents(calldataPointer, offsetToId, sponsorDomainSeparator, typehash, domainSeparator, operation, validate);
+    function processSplitClaimWithQualificationAndSponsorDomain(bytes32 messageHash, uint256 calldataPointer, uint256 offsetToId, bytes32 sponsorDomainSeparator, bytes32 typehash, bytes32 domainSeparator)
+        internal
+        returns (bool)
+    {
+        return messageHash.processClaimWithSplitComponents(calldataPointer, offsetToId, sponsorDomainSeparator, typehash, domainSeparator, validate);
     }
 
     /**
@@ -141,19 +135,13 @@ library ClaimProcessorLib {
      * @param sponsorDomainSeparator   The domain separator for the sponsor's signature, or zero for non-exogenous claims.
      * @param typehash                 The EIP-712 typehash used for the claim message.
      * @param domainSeparator          The local domain separator.
-     * @param operation                Function pointer to either _release or _withdraw for executing the claim.
      * @return                         Whether the split batch claim was successfully processed.
      */
-    function processSplitBatchClaimWithQualificationAndSponsorDomain(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomainSeparator,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processClaimWithSplitBatchComponents(calldataPointer, offsetToId, sponsorDomainSeparator, typehash, domainSeparator, operation, validate);
+    function processSplitBatchClaimWithQualificationAndSponsorDomain(bytes32 messageHash, uint256 calldataPointer, uint256 offsetToId, bytes32 sponsorDomainSeparator, bytes32 typehash, bytes32 domainSeparator)
+        internal
+        returns (bool)
+    {
+        return messageHash.processClaimWithSplitBatchComponents(calldataPointer, offsetToId, sponsorDomainSeparator, typehash, domainSeparator, validate);
     }
 
     /**
@@ -166,18 +154,10 @@ library ClaimProcessorLib {
      * @param offsetToId       Offset to segment of calldata where relevant claim parameters begin.
      * @param typehash         The EIP-712 typehash used for the claim message.
      * @param domainSeparator  The local domain separator.
-     * @param operation        Function pointer to either _release or _withdraw for executing the claim.
      * @return                 Whether the split claim was successfully processed.
      */
-    function processSimpleSplitClaim(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processSplitClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, bytes32(0), typehash, domainSeparator, operation);
+    function processSimpleSplitClaim(bytes32 messageHash, uint256 calldataPointer, uint256 offsetToId, bytes32 typehash, bytes32 domainSeparator) internal returns (bool) {
+        return messageHash.processSplitClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, bytes32(0), typehash, domainSeparator);
     }
 
     /**
@@ -190,18 +170,10 @@ library ClaimProcessorLib {
      * @param offsetToId       Offset to segment of calldata where relevant claim parameters begin.
      * @param typehash         The EIP-712 typehash used for the claim message.
      * @param domainSeparator  The local domain separator.
-     * @param operation        Function pointer to either _release or _withdraw for executing the claim.
      * @return                 Whether the split batch claim was successfully processed.
      */
-    function processSimpleSplitBatchClaim(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processSplitBatchClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, bytes32(0), typehash, domainSeparator, operation);
+    function processSimpleSplitBatchClaim(bytes32 messageHash, uint256 calldataPointer, uint256 offsetToId, bytes32 typehash, bytes32 domainSeparator) internal returns (bool) {
+        return messageHash.processSplitBatchClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, bytes32(0), typehash, domainSeparator);
     }
 
     /**
@@ -215,19 +187,10 @@ library ClaimProcessorLib {
      * @param sponsorDomain    The domain separator for the sponsor's signature.
      * @param typehash         The EIP-712 typehash used for the claim message.
      * @param domainSeparator  The local domain separator.
-     * @param operation        Function pointer to either _release or _withdraw for executing the claim.
      * @return                 Whether the split claim was successfully processed.
      */
-    function processSplitClaimWithSponsorDomain(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomain,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processSplitClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator, operation);
+    function processSplitClaimWithSponsorDomain(bytes32 messageHash, uint256 calldataPointer, uint256 offsetToId, bytes32 sponsorDomain, bytes32 typehash, bytes32 domainSeparator) internal returns (bool) {
+        return messageHash.processSplitClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator);
     }
 
     /**
@@ -242,18 +205,12 @@ library ClaimProcessorLib {
      * @param sponsorDomain    The domain separator for the sponsor's signature.
      * @param typehash         The EIP-712 typehash used for the claim message.
      * @param domainSeparator  The local domain separator.
-     * @param operation        Function pointer to either _release or _withdraw for executing the claim.
      * @return                 Whether the split batch claim was successfully processed.
      */
-    function processSplitBatchClaimWithSponsorDomain(
-        bytes32 messageHash,
-        uint256 calldataPointer,
-        uint256 offsetToId,
-        bytes32 sponsorDomain,
-        bytes32 typehash,
-        bytes32 domainSeparator,
-        function(address, address, uint256, uint256) internal returns (bool) operation
-    ) internal returns (bool) {
-        return messageHash.processSplitBatchClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator, operation);
+    function processSplitBatchClaimWithSponsorDomain(bytes32 messageHash, uint256 calldataPointer, uint256 offsetToId, bytes32 sponsorDomain, bytes32 typehash, bytes32 domainSeparator)
+        internal
+        returns (bool)
+    {
+        return messageHash.processSplitBatchClaimWithQualificationAndSponsorDomain(calldataPointer, offsetToId, sponsorDomain, typehash, domainSeparator);
     }
 }

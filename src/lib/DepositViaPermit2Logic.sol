@@ -11,6 +11,7 @@ import { RegistrationLib } from "./RegistrationLib.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { IdLib } from "./IdLib.sol";
 import { ValidityLib } from "./ValidityLib.sol";
+import { SharedLib } from "./SharedLogic.sol";
 
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.sol";
@@ -28,6 +29,7 @@ import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.so
  * to the associated permit2 deposit function interfaces!
  */
 contract DepositViaPermit2Logic is DepositLogic {
+    using SharedLib for address;
     using DepositViaPermit2Lib for bytes32;
     using DepositViaPermit2Lib for uint256;
     using IdLib for uint256;
@@ -323,7 +325,7 @@ contract DepositViaPermit2Logic is DepositLogic {
 
         // Perform initial native deposit if present.
         if (firstUnderlyingTokenIsNative) {
-            _deposit(recipient, initialId, msg.value);
+            recipient.deposit(initialId, msg.value);
 
             // Set the initial id using the native resource lock.
             ids[0] = initialId;
@@ -465,7 +467,7 @@ contract DepositViaPermit2Logic is DepositLogic {
                 errorBuffer |= (initialBalance >= tokenBalance).asUint256();
 
                 // Perform the deposit.
-                _deposit(recipient, ids[i + firstUnderlyingTokenIsNative.asUint256()], tokenBalance - initialBalance);
+                recipient.deposit(ids[i + firstUnderlyingTokenIsNative.asUint256()], tokenBalance - initialBalance);
             }
         }
 

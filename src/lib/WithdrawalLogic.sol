@@ -4,10 +4,11 @@ pragma solidity ^0.8.27;
 import { ForcedWithdrawalStatus } from "../types/ForcedWithdrawalStatus.sol";
 import { ResetPeriod } from "../types/ResetPeriod.sol";
 
-import { SharedLogic } from "./SharedLogic.sol";
+import { ConstructorLogic } from "./ConstructorLogic.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { EventLib } from "./EventLib.sol";
 import { IdLib } from "./IdLib.sol";
+import { SharedLib } from "./SharedLogic.sol";
 
 /**
  * @title WithdrawalLogic
@@ -15,11 +16,12 @@ import { IdLib } from "./IdLib.sol";
  * forced withdrawals, including initiation and the actual withdrawal, and for querying
  * for the forced withdrawal status for given resource locks.
  */
-contract WithdrawalLogic is SharedLogic {
+contract WithdrawalLogic is ConstructorLogic {
     using IdLib for uint256;
     using IdLib for ResetPeriod;
     using EfficiencyLib for uint256;
     using EventLib for uint256;
+    using SharedLib for address;
 
     // Storage scope for forced withdrawal activation times:
     // slot: keccak256(_FORCED_WITHDRAWAL_ACTIVATIONS_SCOPE ++ account ++ id) => activates.
@@ -108,7 +110,7 @@ contract WithdrawalLogic is SharedLogic {
         }
 
         // Process the withdrawal.
-        return _withdraw(msg.sender, recipient, id, amount);
+        return msg.sender.withdraw(recipient, id, amount);
     }
 
     /**

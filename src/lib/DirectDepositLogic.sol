@@ -8,6 +8,7 @@ import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { IdLib } from "./IdLib.sol";
 import { DepositLogic } from "./DepositLogic.sol";
 import { ValidityLib } from "./ValidityLib.sol";
+import { SharedLib } from "./SharedLogic.sol";
 
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.sol";
@@ -19,6 +20,7 @@ import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.so
  * single-token deposits and batch token deposits.
  */
 contract DirectDepositLogic is DepositLogic {
+    using SharedLib for address;
     using IdLib for uint96;
     using IdLib for uint256;
     using IdLib for address;
@@ -41,7 +43,7 @@ contract DirectDepositLogic is DepositLogic {
         id = address(0).toIdIfRegistered(Scope.Multichain, ResetPeriod.TenMinutes, allocator);
 
         // Mint ERC6909 tokens to caller using derived ID and supplied native tokens.
-        _deposit(msg.sender, id, msg.value);
+        msg.sender.deposit(id, msg.value);
     }
 
     /**
@@ -97,7 +99,7 @@ contract DirectDepositLogic is DepositLogic {
 
         // Deposit native tokens directly if first underlying token is native.
         if (firstUnderlyingTokenIsNative) {
-            _deposit(recipient, id, msg.value);
+            recipient.deposit(id, msg.value);
         }
 
         // Iterate over remaining IDs and amounts.
@@ -164,7 +166,7 @@ contract DirectDepositLogic is DepositLogic {
         id = address(0).toIdIfRegistered(scope, resetPeriod, allocator);
 
         // Deposit native tokens and mint ERC6909 tokens to recipient.
-        _deposit(recipient, id, msg.value);
+        recipient.deposit(id, msg.value);
     }
 
     /**
