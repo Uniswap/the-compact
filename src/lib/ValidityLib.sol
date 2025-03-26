@@ -8,6 +8,7 @@ import { ConsumerLib } from "./ConsumerLib.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { DomainLib } from "./DomainLib.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { SignDelegatorLib } from "./SignDelegatorLib.sol";
 
 /**
  * @title ValidityLib
@@ -22,6 +23,7 @@ library ValidityLib {
     using DomainLib for bytes32;
     using SignatureCheckerLib for address;
     using ValidityLib for uint256;
+    using SignDelegatorLib for address;
 
     /**
      * @notice Internal function that retrieves an allocator's address from their ID and
@@ -76,6 +78,34 @@ library ValidityLib {
     function signedBy(bytes32 messageHash, address expectedSigner, bytes calldata signature, bytes32 domainSeparator) internal view {
         // Apply domain separator to message hash and verify it was signed correctly.
         bool hasValidSigner = expectedSigner.isValidSignatureNowCalldata(messageHash.withDomain(domainSeparator), signature);
+
+        assembly ("memory-safe") {
+            // Allow signature check to be bypassed if caller is the expected signer.
+            if iszero(or(hasValidSigner, eq(expectedSigner, caller()))) {
+                // revert InvalidSignature();
+                mstore(0, 0x8baa579f)
+                revert(0x1c, 0x04)
+            }
+        }
+    }
+
+    /**
+     * @notice Internal function that validates a signature against an expected signer.
+     * should the initial verification fail, the SignatureDelegator is used to valdiate the claim
+     * Returns if the signature is valid or if the caller is the expected signer, otherwise
+     * reverts. The message hash is combined with the domain separator before verification.
+     * If ECDSA recovery fails, an EIP-1271 isValidSignature check is performed.
+     * If EIP-1271 fails, and a ISignDelegator is set for the sponsor, an ISignDelegator.verifyClaim check is performed
+     * @param messageHash     The EIP-712 hash of the message to verify.
+     * @param expectedSigner  The address that should have signed the message.
+     * @param signature       The signature to verify.
+     * @param domainSeparator The domain separator to combine with the message hash.
+     */
+    function signedByOrDelegated(bytes32 messageHash, address expectedSigner, bytes calldata signature, bytes32 domainSeparator) internal {
+        // Apply domain separator to message hash and verify it was signed correctly.
+        bytes32 claimHash = messageHash.withDomain(domainSeparator);
+        bool hasValidSigner = expectedSigner.isValidSignatureNowCalldata(claimHash, signature);
+        if (!hasValidSigner) hasValidSigner = expectedSigner.verifyByDelegator(claimHash, signature);
 
         assembly ("memory-safe") {
             // Allow signature check to be bypassed if caller is the expected signer.

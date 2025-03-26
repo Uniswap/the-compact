@@ -94,7 +94,7 @@ library ClaimProcessorLib {
 
         // Validate sponsor authorization through either ECDSA, EIP-1271, or direct registration.
         if ((sponsorDomainSeparator != domainSeparator).or(sponsorSignature.length != 0) || sponsor.hasNoActiveRegistration(messageHash, typehash)) {
-            messageHash.signedBy(sponsor, sponsorSignature, sponsorDomainSeparator);
+            messageHash.signedByOrDelegated(sponsor, sponsorSignature, sponsorDomainSeparator);
         }
 
         allocator.callAuthorizeClaim(messageHash, sponsor, nonce, expires, idsAndAmounts, allocatorData);

@@ -47,7 +47,7 @@ contract TheCompactTest is Test {
     bytes32 permit2EIP712DomainHash = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
     address alwaysOKAllocator;
 
-    function setUp() public {
+    function setUp() public virtual {
         address permit2Deployer = address(0x4e59b44847b379578588920cA78FbF26c0B4956C);
         address deployedPermit2Deployer;
         address permit2DeployerDeployer = address(0x3fAB184622Dc19b6109349B94811493BF2a45362);
@@ -286,7 +286,7 @@ contract TheCompactTest is Test {
         assert(bytes(theCompact.tokenURI(id)).length > 0);
     }
 
-    function test_depositERC20ViaPermit2AndURI() public {
+    function test_depositERC20ViaPermit2AndURI() public virtual {
         address recipient = 0x1111111111111111111111111111111111111111;
         ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
         Scope scope = Scope.Multichain;
@@ -338,7 +338,7 @@ contract TheCompactTest is Test {
         assert(bytes(theCompact.tokenURI(id)).length > 0);
     }
 
-    function test_depositBatchViaPermit2SingleERC20() public {
+    function test_depositBatchViaPermit2SingleERC20() public virtual {
         address recipient = 0x1111111111111111111111111111111111111111;
         ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
         Scope scope = Scope.Multichain;
@@ -395,7 +395,7 @@ contract TheCompactTest is Test {
         assert(bytes(theCompact.tokenURI(ids[0])).length > 0);
     }
 
-    function test_depositBatchViaPermit2NativeAndERC20() public {
+    function test_depositBatchViaPermit2NativeAndERC20() public virtual {
         address recipient = 0x1111111111111111111111111111111111111111;
         ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
         Scope scope = Scope.Multichain;
@@ -1083,7 +1083,7 @@ contract TheCompactTest is Test {
         assertEq(theCompact.balanceOf(recipientTwo, id), 0);
     }
 
-    function test_depositAndRegisterWithWitnessViaPermit2ThenClaim() public {
+    function test_depositAndRegisterWithWitnessViaPermit2ThenClaim() public virtual {
         ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
         Scope scope = Scope.Multichain;
         uint256 amount = 1e18;
@@ -1252,7 +1252,7 @@ contract TheCompactTest is Test {
         assertEq(theCompact.balanceOf(recipientTwo, id), amountTwo);
     }
 
-    function test_batchDepositAndRegisterWithWitnessViaPermit2ThenClaim() public {
+    function test_batchDepositAndRegisterWithWitnessViaPermit2ThenClaim() public virtual {
         ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
         Scope scope = Scope.Multichain;
         uint256 nonce = 0;
