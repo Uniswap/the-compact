@@ -529,7 +529,7 @@ library HashLib {
 
             // Iterate over the additional chains array and store each segment hash in memory.
             for { let i := 0 } lt(i, additionalChainsLength) { i := add(i, 0x20) } {
-                mstore(add(m, i), calldataload(add(additionalChainsData, add(i, extraOffset))))
+                mstore(add(add(m, i), extraOffset), calldataload(add(additionalChainsData, i)))
                 // If current index matches chain index, store derived hash and increment offset.
                 if eq(i, chainIndex) {
                     extraOffset := 0x20
