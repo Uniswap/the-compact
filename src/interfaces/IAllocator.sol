@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import { ResetPeriod } from "../types/ResetPeriod.sol";
+
 // NOTE: Allocators with smart contract implementations should also implement EIP1271.
 interface IAllocator {
     // Called on standard transfers; must return this function selector (0x1a808f91).

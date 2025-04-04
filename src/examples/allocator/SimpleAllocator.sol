@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import { IAllocator } from "../../interfaces/IAllocator.sol";
+import { IAllocator, ResetPeriod } from "../../interfaces/IAllocator.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 
 interface EIP712 {

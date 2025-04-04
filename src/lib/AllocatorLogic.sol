@@ -98,11 +98,13 @@ contract AllocatorLogic {
      * @return allocator   The address of the allocator mediating the resource lock.
      * @return resetPeriod The duration after which the underlying tokens can be withdrawn once a forced withdrawal is initiated.
      * @return scope       The scope of the resource lock (multichain or single chain).
+     * @return lockTag     The lock tag containing the allocator ID, the reset period, and the scope.
      */
-    function _getLockDetails(uint256 id) internal view returns (address token, address allocator, ResetPeriod resetPeriod, Scope scope) {
+    function _getLockDetails(uint256 id) internal view returns (address token, address allocator, ResetPeriod resetPeriod, Scope scope, bytes12 lockTag) {
         token = id.toAddress();
         allocator = id.toAllocatorId().toRegisteredAllocator();
         resetPeriod = id.toResetPeriod();
         scope = id.toScope();
+        lockTag = id.toLockTag();
     }
 }

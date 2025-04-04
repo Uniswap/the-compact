@@ -10,6 +10,7 @@ import { Lock } from "./types/Lock.sol";
 import { Scope } from "./types/Scope.sol";
 import { ResetPeriod } from "./types/ResetPeriod.sol";
 import { ForcedWithdrawalStatus } from "./types/ForcedWithdrawalStatus.sol";
+import { EmissaryStatus } from "./types/EmissaryStatus.sol";
 
 import { TheCompactLogic } from "./lib/TheCompactLogic.sol";
 
@@ -178,8 +179,20 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         return _getForcedWithdrawalStatus(account, id);
     }
 
-    function getLockDetails(uint256 id) external view returns (address, address, ResetPeriod, Scope) {
+    function getLockDetails(uint256 id) external view returns (address, address, ResetPeriod, Scope, bytes12) {
         return _getLockDetails(id);
+    }
+
+    function assignEmissary(bytes12 lockTag, address emissary) external returns (bool) {
+        return _assignEmissary(lockTag, emissary);
+    }
+
+    function scheduleEmissaryAssignment(bytes12 lockTag) external returns (uint256 emissaryAssignmentAvailableAt) {
+        return _scheduleEmissaryAssignment(lockTag);
+    }
+
+    function getEmissaryStatus(address sponsor, bytes12 lockTag) external view returns (EmissaryStatus status, uint256 emissaryAssignmentAvailableAt, address currentEmissary) {
+        return _getEmissaryStatus(sponsor, lockTag);
     }
 
     function hasConsumedAllocatorNonce(uint256 nonce, address allocator) external view returns (bool) {

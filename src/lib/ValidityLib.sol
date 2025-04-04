@@ -8,6 +8,7 @@ import { ConsumerLib } from "./ConsumerLib.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { DomainLib } from "./DomainLib.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { EmissaryLib } from "./EmissaryLib.sol";
 
 /**
  * @title ValidityLib
@@ -22,6 +23,8 @@ library ValidityLib {
     using DomainLib for bytes32;
     using SignatureCheckerLib for address;
     using ValidityLib for uint256;
+    using EmissaryLib for bytes32;
+    using EmissaryLib for uint256[2][];
 
     /**
      * @notice Internal function that retrieves an allocator's address from their ID and
@@ -80,6 +83,36 @@ library ValidityLib {
         assembly ("memory-safe") {
             // Allow signature check to be bypassed if caller is the expected signer.
             if iszero(or(hasValidSigner, eq(expectedSigner, caller()))) {
+                // revert InvalidSignature();
+                mstore(0, 0x8baa579f)
+                revert(0x1c, 0x04)
+            }
+        }
+    }
+
+    /**
+     * @notice Internal function that validates a signature against an expected signer.
+     * should the initial verification fail, the SignatureDelegator is used to valdiate the claim
+     * Returns if the signature is valid or if the caller is the expected signer, otherwise
+     * reverts. The message hash is combined with the domain separator before verification.
+     * If ECDSA recovery fails, an EIP-1271 isValidSignature check is performed.
+     * If EIP-1271 fails, and an IEmissary is set for the sponsor, an IEmissary.verifyClaim check is performed
+     * @param messageHash     The EIP-712 hash of the message to verify.
+     * @param expectedSigner  The address that should have signed the message.
+     * @param signature       The signature to verify.
+     * @param domainSeparator The domain separator to combine with the message hash.
+     */
+    function signedBySponsorOrEmissary(bytes32 messageHash, address expectedSigner, bytes calldata signature, bytes32 domainSeparator, uint256[2][] memory idsAndAmounts) internal view {
+        if (expectedSigner == msg.sender) return;
+        // Apply domain separator to message hash and verify it was signed correctly.
+        bytes32 claimHash = messageHash.withDomain(domainSeparator);
+        // first check signature with ECDSA / ERC1271
+        // if the signature validation failed, fallback to emissary
+        bool hasValidSigner = expectedSigner.isValidSignatureNowCalldata(claimHash, signature) || claimHash.verifyWithEmissary(expectedSigner, idsAndAmounts.extractSameLockTag(), signature);
+
+        assembly ("memory-safe") {
+            // Allow signature check to be bypassed if caller is the expected signer.
+            if iszero(hasValidSigner) {
                 // revert InvalidSignature();
                 mstore(0, 0x8baa579f)
                 revert(0x1c, 0x04)
