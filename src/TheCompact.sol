@@ -25,32 +25,20 @@ import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.so
  *         This contract has not yet been properly tested, audited, or reviewed.
  */
 contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
-    function deposit(address allocator) external payable returns (uint256) {
-        return _performBasicNativeTokenDeposit(allocator);
+    function deposit(bytes12 locktag) external payable returns (uint256) {
+        return _performCustomNativeTokenDeposit(locktag, msg.sender);
     }
 
-    function depositAndRegister(address allocator, bytes32 claimHash, bytes32 typehash) external payable returns (uint256 id) {
-        id = _performBasicNativeTokenDeposit(allocator);
-
-        _registerWithDefaults(claimHash, typehash);
+    function deposit(bytes12 locktag, address recipient) external payable returns (uint256) {
+        return _performCustomNativeTokenDeposit(locktag, recipient);
     }
 
-    function deposit(address token, address allocator, uint256 amount) external returns (uint256) {
-        return _performBasicERC20Deposit(token, allocator, amount);
+    function deposit(address token, bytes12 locktag, uint256 amount) external returns (uint256) {
+        return _performCustomERC20Deposit(token, locktag, amount, msg.sender);
     }
 
-    function depositAndRegister(address token, address allocator, uint256 amount, bytes32 claimHash, bytes32 typehash) external returns (uint256 id) {
-        id = _performBasicERC20Deposit(token, allocator, amount);
-
-        _registerWithDefaults(claimHash, typehash);
-    }
-
-    function deposit(address allocator, ResetPeriod resetPeriod, Scope scope, address recipient) external payable returns (uint256) {
-        return _performCustomNativeTokenDeposit(allocator, resetPeriod, scope, recipient);
-    }
-
-    function deposit(address token, address allocator, ResetPeriod resetPeriod, Scope scope, uint256 amount, address recipient) external returns (uint256) {
-        return _performCustomERC20Deposit(token, allocator, resetPeriod, scope, amount, recipient);
+    function deposit(address token, bytes12 locktag, uint256 amount, address recipient) external returns (uint256) {
+        return _performCustomERC20Deposit(token, locktag, amount, recipient);
     }
 
     function deposit(uint256[2][] calldata idsAndAmounts, address recipient) external payable returns (bool) {
@@ -71,13 +59,11 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         uint256, // nonce
         uint256, // deadline
         address, // depositor
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12 locktag,
         address recipient,
         bytes calldata signature
     ) external returns (uint256) {
-        return _depositViaPermit2(token, recipient, signature);
+        return _depositViaPermit2(token, locktag, recipient, signature);
     }
 
     function depositAndRegister(
@@ -86,15 +72,13 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         uint256, // nonce
         uint256, // deadline
         address depositor, // also recipient
-        address, // allocator
-        ResetPeriod resetPeriod,
-        Scope, //scope
+        bytes12 locktag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
         bytes calldata signature
     ) external returns (uint256) {
-        return _depositAndRegisterViaPermit2(token, depositor, resetPeriod, claimHash, compactCategory, witness, signature);
+        return _depositAndRegisterViaPermit2(token, depositor, locktag, claimHash, compactCategory, witness, signature);
     }
 
     function deposit(
@@ -102,9 +86,7 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         ISignatureTransfer.TokenPermissions[] calldata permitted,
         uint256, // nonce
         uint256, // deadline
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12, // locktag,
         address recipient,
         bytes calldata signature
     ) external payable returns (uint256[] memory) {
@@ -116,15 +98,13 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         ISignatureTransfer.TokenPermissions[] calldata permitted,
         uint256, // nonce
         uint256, // deadline
-        address, // allocator
-        ResetPeriod resetPeriod,
-        Scope, //scope
+        bytes12 locktag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
         bytes calldata signature
     ) external payable returns (uint256[] memory) {
-        return _depositBatchAndRegisterViaPermit2(depositor, permitted, resetPeriod, claimHash, compactCategory, witness, signature);
+        return _depositBatchAndRegisterViaPermit2(depositor, permitted, locktag, claimHash, compactCategory, witness, signature);
     }
 
     function allocatedTransfer(SplitTransfer calldata transfer) external returns (bool) {

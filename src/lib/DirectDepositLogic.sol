@@ -29,24 +29,6 @@ contract DirectDepositLogic is DepositLogic {
     using SafeTransferLib for address;
 
     /**
-     * @notice Internal function for depositing native tokens into a resource lock and
-     * receiving back ERC6909 tokens representing the underlying locked balance controlled
-     * by the depositor. The allocator mediating the lock is provided as an argument, and the
-     * default reset period (ten minutes) and scope (multichain) will be used for the resource
-     * lock. The ERC6909 token amount received by the caller will match the amount of native
-     * tokens sent with the transaction.
-     * @param allocator The address of the allocator.
-     * @return id The ERC6909 token identifier of the associated resource lock.
-     */
-    function _performBasicNativeTokenDeposit(address allocator) internal returns (uint256 id) {
-        // Derive the resource lock ID using the null address and default parameters.
-        id = address(0).toIdIfRegistered(Scope.Multichain, ResetPeriod.TenMinutes, allocator);
-
-        // Mint ERC6909 tokens to caller using derived ID and supplied native tokens.
-        msg.sender.deposit(id, msg.value);
-    }
-
-    /**
      * @notice Internal function for depositing multiple tokens in a single transaction. The
      * first entry in idsAndAmounts can optionally represent native tokens by providing the null
      * address and an amount matching msg.value. For ERC20 tokens, the caller must directly
@@ -134,36 +116,16 @@ contract DirectDepositLogic is DepositLogic {
     }
 
     /**
-     * @notice Internal function for depositing native tokens into a resource lock and
-     * receiving back ERC6909 tokens representing the underlying locked balance controlled
-     * by the depositor. The allocator mediating the lock is provided as an argument, and the
-     * default reset period (ten minutes) and scope (multichain) will be used for the resource
-     * lock. The ERC6909 token amount received by the caller will match the amount of native
-     * tokens sent with the transaction.
-     * @param allocator The address of the allocator.
-     * @return id The ERC6909 token identifier of the associated resource lock.
-     */
-    function _performBasicERC20Deposit(address token, address allocator, uint256 amount) internal returns (uint256 id) {
-        // Derive resource lock ID using provided token, default parameters, and allocator.
-        id = token.excludingNative().toIdIfRegistered(Scope.Multichain, ResetPeriod.TenMinutes, allocator);
-
-        // Transfer underlying tokens in and mint ERC6909 tokens to caller.
-        _transferAndDepositWithReentrancyGuard(token, msg.sender, id, amount);
-    }
-
-    /**
      * @notice Internal function for depositing native tokens into a resource lock with custom
      * reset period and scope parameters. The ERC6909 token amount received by the recipient
      * will match the amount of native tokens sent with the transaction.
-     * @param allocator   The address of the allocator mediating the resource lock.
-     * @param resetPeriod The duration after which the resource lock can be reset once a forced withdrawal is initiated.
-     * @param scope       The scope of the resource lock (multichain or single chain).
-     * @param recipient   The address that will receive the corresponding ERC6909 tokens.
-     * @return id         The ERC6909 token identifier of the associated resource lock.
+     * @param locktag   Lock configuration identifier, containing the allocator, resetPeriod, and scope.
+     * @param recipient The address that will receive the corresponding ERC6909 tokens.
+     * @return id       The ERC6909 token identifier of the associated resource lock.
      */
-    function _performCustomNativeTokenDeposit(address allocator, ResetPeriod resetPeriod, Scope scope, address recipient) internal returns (uint256 id) {
+    function _performCustomNativeTokenDeposit(bytes12 locktag, address recipient) internal returns (uint256 id) {
         // Derive resource lock ID using null address, provided parameters, and allocator.
-        id = address(0).toIdIfRegistered(scope, resetPeriod, allocator);
+        id = address(0).toIdIfRegistered(locktag);
 
         // Deposit native tokens and mint ERC6909 tokens to recipient.
         recipient.deposit(id, msg.value);
@@ -177,16 +139,14 @@ contract DirectDepositLogic is DepositLogic {
      * in the resource lock, which may differ from the amount transferred depending on the
      * implementation details of the respective token.
      * @param token       The address of the ERC20 token to deposit.
-     * @param allocator   The address of the allocator mediating the resource lock.
-     * @param resetPeriod The duration after which the resource lock can be reset once a forced withdrawal is initiated.
-     * @param scope       The scope of the resource lock (multichain or single chain).
+     * @param locktag   Lock configuration identifier, containing the allocator, resetPeriod, and scope.
      * @param amount      The amount of tokens to deposit.
      * @param recipient   The address that will receive the corresponding ERC6909 tokens.
      * @return id         The ERC6909 token identifier of the associated resource lock.
      */
-    function _performCustomERC20Deposit(address token, address allocator, ResetPeriod resetPeriod, Scope scope, uint256 amount, address recipient) internal returns (uint256 id) {
+    function _performCustomERC20Deposit(address token, bytes12 locktag, uint256 amount, address recipient) internal returns (uint256 id) {
         // Derive resource lock ID using provided token, parameters, and allocator.
-        id = token.excludingNative().toIdIfRegistered(scope, resetPeriod, allocator);
+        id = token.excludingNative().toIdIfRegistered(locktag);
 
         // Transfer ERC20 tokens in and mint ERC6909 tokens to recipient.
         _transferAndDepositWithReentrancyGuard(token, recipient, id, amount);

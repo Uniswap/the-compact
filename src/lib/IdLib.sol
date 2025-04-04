@@ -19,6 +19,7 @@ import { EfficientHashLib } from "solady/utils/EfficientHashLib.sol";
  * assigning them an allocator ID.
  */
 library IdLib {
+    using IdLib for bytes12;
     using IdLib for uint96;
     using IdLib for uint256;
     using IdLib for address;
@@ -90,18 +91,16 @@ library IdLib {
      * provided allocator has been registered. Derives the allocator ID from the registered
      * allocator, and combines it with the provided scope, reset period, and token address
      * to form a single ID value. Reverts if the allocator is not registered.
-     * @param token       The address of the underlying token.
-     * @param scope       The scope of the resource lock (multichain or single chain).
-     * @param resetPeriod The duration after which the resource lock can be reset.
-     * @param allocator   The address of the allocator mediating the resource lock.
-     * @return id         The derived resource lock ID.
+     * @param token   The address of the underlying token.
+     * @param locktag Lock configuration identifier, containing the allocator, resetPeriod, and scope.
+     * @return id     The derived resource lock ID.
      */
-    function toIdIfRegistered(address token, Scope scope, ResetPeriod resetPeriod, address allocator) internal view returns (uint256 id) {
+    function toIdIfRegistered(address token, bytes12 locktag) internal view returns (uint256 id) {
         // Derive the allocator ID for the provided allocator address.
-        uint96 allocatorId = allocator.toAllocatorIdIfRegistered();
+        locktag.toAllocatorId().mustHaveARegisteredAllocator();
 
         // Derive resource lock ID (pack scope, reset period, allocator ID, & token).
-        id = (allocatorId.toLockTag(scope, resetPeriod).asUint256() | token.asUint256());
+        id = (locktag.asUint256() | token.asUint256());
     }
 
     /**
@@ -299,6 +298,18 @@ library IdLib {
     }
 
     /**
+     * @notice Internal pure function for extracting the reset period from a locktag.
+     * @param locktag      Locktag to extract from.
+     * @return resetPeriod The reset period (bits 252-254).
+     */
+    function toResetPeriod(bytes12 locktag) internal pure returns (ResetPeriod resetPeriod) {
+        assembly ("memory-safe") {
+            // extract 2nd, 3rd & 4th uppermost bits
+            resetPeriod := and(shr(252, locktag), 7)
+        }
+    }
+
+    /**
      * @notice Internal pure function for extracting the compact flag from a resource
      * lock ID. The compact flag is a 4-bit component of the allocator ID.
      * @param id           The resource lock ID to extract from.
@@ -324,6 +335,21 @@ library IdLib {
         assembly ("memory-safe") {
             // extract bits 5-96
             allocatorId := shr(164, shl(4, id))
+        }
+    }
+
+    /**
+     * @notice Internal pure function for extracting the allocator ID from a locktag.
+     * Allocator ID is represented by a uint96 as solidity only supports uint values
+     * for multiples of 8 bits.
+     * @param locktag      Locktag to extract from.
+     * @return allocatorId The allocator ID (bits 160-251).
+     */
+    function toAllocatorId(bytes12 locktag) internal pure returns (uint96 allocatorId) {
+        // We need to move the locktag from the leftmost 12 to the rightmost 12.
+        assembly ("memory-safe") {
+            // extract bits 5-96
+            allocatorId := shr(164, shl(4, locktag))
         }
     }
 

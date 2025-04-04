@@ -32,6 +32,7 @@ contract DepositViaPermit2Logic is DepositLogic {
     using TransferLib for address;
     using DepositViaPermit2Lib for bytes32;
     using DepositViaPermit2Lib for uint256;
+    using IdLib for bytes12;
     using IdLib for uint256;
     using IdLib for address;
     using IdLib for ResetPeriod;
@@ -57,16 +58,17 @@ contract DepositViaPermit2Logic is DepositLogic {
      * depositor must contain a CompactDeposit witness containing the allocator, the reset period,
      * the scope, and the intended recipient of the deposit.
      * @param token       The address of the ERC20 token to deposit.
+     * @param locktag   Lock configuration identifier, containing the allocator, resetPeriod, and scope.
      * @param recipient   The address that will receive the corresponding the ERC6909 tokens.
      * @param signature   The Permit2 signature from the depositor authorizing the deposit.
      * @return            The ERC6909 token identifier of the associated resource lock.
      */
-    function _depositViaPermit2(address token, address recipient, bytes calldata signature) internal returns (uint256) {
+    function _depositViaPermit2(address token, bytes12 locktag, address recipient, bytes calldata signature) internal returns (uint256) {
         // Derive the CompactDeposit witness hash.
         bytes32 witness = uint256(0xa4).asStubborn().deriveCompactDepositWitnessHash();
 
         // Set reentrancy lock, get initial balance, and begin preparing Permit2 call data.
-        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) = _setReentrancyLockAndStartPreparingPermit2Call(token);
+        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) = _setReentrancyLockAndStartPreparingPermit2Call(token, locktag);
 
         // Insert the CompactDeposit typestring fragment.
         typestringMemoryLocation.insertCompactDepositTypestring();
@@ -101,7 +103,7 @@ contract DepositViaPermit2Logic is DepositLogic {
      * specified compact category.
      * @param token           The address of the ERC20 token to deposit.
      * @param depositor       The account signing the permit2 authorization and depositing the tokens.
-     * @param resetPeriod     The duration after which the resource lock can be reset once a forced withdrawal is initiated.
+     * @param locktag   Lock configuration identifier, containing the allocator, resetPeriod, and scope.
      * @param claimHash       A bytes32 hash derived from the details of the compact.
      * @param compactCategory The category of the compact being registered (Compact, BatchCompact, or MultichainCompact).
      * @param witness         Additional data used in generating the claim hash.
@@ -111,14 +113,14 @@ contract DepositViaPermit2Logic is DepositLogic {
     function _depositAndRegisterViaPermit2(
         address token,
         address depositor, // also recipient
-        ResetPeriod resetPeriod,
+        bytes12 locktag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
         bytes calldata signature
     ) internal returns (uint256) {
         // Set reentrancy lock, get initial balance, and begin preparing Permit2 call data.
-        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) = _setReentrancyLockAndStartPreparingPermit2Call(token);
+        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) = _setReentrancyLockAndStartPreparingPermit2Call(token, locktag);
 
         // Continue preparing Permit2 call data and get activation and compact typehashes.
         (bytes32 activationTypehash, bytes32 compactTypehash) = typestringMemoryLocation.writeWitnessAndGetTypehashes(compactCategory, witness, bool(false).asStubborn());
@@ -139,7 +141,7 @@ contract DepositViaPermit2Logic is DepositLogic {
         _checkBalanceAndDeposit(token, depositor, id, initialBalance);
 
         // Register the compact.
-        depositor.registerCompact(claimHash, compactTypehash, resetPeriod);
+        depositor.registerCompact(claimHash, compactTypehash, locktag.toResetPeriod());
 
         // Clear reentrancy lock.
         _clearReentrancyGuard();
@@ -210,7 +212,7 @@ contract DepositViaPermit2Logic is DepositLogic {
      * Compact, BatchCompact, or MultichainCompact payload matching the specified compact category.
      * @param depositor       The account signing the permit2 authorization and depositing the tokens.
      * @param permitted       Array of token permissions specifying the deposited tokens and amounts.
-     * @param resetPeriod     The duration after which the resource locks can be reset once forced withdrawals are initiated.
+     * @param locktag          Lock configuration identifier, containing the allocator, resetPeriod, and scope.
      * @param claimHash       A bytes32 hash derived from the details of the compact.
      * @param compactCategory The category of the compact being registered (Compact, BatchCompact, or MultichainCompact).
      * @param witness         Additional data used in generating the claim hash.
@@ -220,7 +222,7 @@ contract DepositViaPermit2Logic is DepositLogic {
     function _depositBatchAndRegisterViaPermit2(
         address depositor,
         ISignatureTransfer.TokenPermissions[] calldata permitted,
-        ResetPeriod resetPeriod,
+        bytes12 locktag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
@@ -264,7 +266,7 @@ contract DepositViaPermit2Logic is DepositLogic {
         _verifyBalancesAndPerformDeposits(ids, permitted, initialTokenBalances, depositor, firstUnderlyingTokenIsNative);
 
         // Register the compact.
-        depositor.registerCompact(claimHash, compactTypehash, resetPeriod);
+        depositor.registerCompact(claimHash, compactTypehash, locktag.toResetPeriod());
 
         // Return the ERC6909 token identifiers of the associated resource locks.
         return ids;
@@ -286,11 +288,9 @@ contract DepositViaPermit2Logic is DepositLogic {
         // Set reentrancy guard.
         _setReentrancyGuard();
 
-        // Get total number of tokens and declare allocator, reset period, & scope variables.
+        // Get total number of tokens and declare locktag variable.
         uint256 totalTokens = permitted.length;
-        address allocator;
-        ResetPeriod resetPeriod;
-        Scope scope;
+        bytes12 locktag;
 
         assembly ("memory-safe") {
             // Get the offset of the permitted calldata struct.
@@ -310,15 +310,13 @@ contract DepositViaPermit2Logic is DepositLogic {
                 revert(0x1c, 0x04)
             }
 
-            // Retrieve allocator, reset period, & scope.
-            // NOTE: these may need to be sanitized if toIdIfRegistered doesn't already handle for it
-            allocator := calldataload(0x84)
-            resetPeriod := calldataload(0xa4)
-            scope := calldataload(0xc4)
+            // Retrieve locktag
+            // NOTE: locktag may need to be sanitized if toIdIfRegistered doesn't already handle for it
+            locktag := calldataload(0x84)
         }
 
         // Get the initial resource lock id.
-        uint256 initialId = address(0).toIdIfRegistered(scope, resetPeriod, allocator);
+        uint256 initialId = address(0).toIdIfRegistered(locktag);
 
         // Allocate ids array.
         ids = new uint256[](totalTokens);
@@ -344,29 +342,18 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @notice Private function for setting the reentrancy guard and starting the process
      *  of preparing a Permit2 call.
      * @param token                      The address of the token to be deposited.
+     * @param locktag   Lock configuration identifier, containing the allocator, resetPeriod, and scope.
      * @return id                        The ERC6909 token identifier of the associated resource lock.
      * @return initialBalance            The initial balance of the token in the contract.
      * @return m                         The memory pointer for the Permit2 call data.
      * @return typestringMemoryLocation  The memory location for the typestring.
      */
-    function _setReentrancyLockAndStartPreparingPermit2Call(address token) private returns (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) {
+    function _setReentrancyLockAndStartPreparingPermit2Call(address token, bytes12 locktag) private returns (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) {
         // Set reentrancy guard.
         _setReentrancyGuard();
 
-        // Declare allocator, reset period, & scope variables.
-        address allocator;
-        ResetPeriod resetPeriod;
-        Scope scope;
-
-        // Retrieve allocator, reset period, & scope.
-        assembly ("memory-safe") {
-            allocator := calldataload(0xa4)
-            resetPeriod := calldataload(0xc4)
-            scope := calldataload(0xe4)
-        }
-
         // Get the ERC6909 token identifier of the associated resource lock.
-        id = token.excludingNative().toIdIfRegistered(scope, resetPeriod, allocator);
+        id = token.excludingNative().toIdIfRegistered(locktag);
 
         // Get the initial balance of the token in the contract.
         initialBalance = token.balanceOf(address(this));
