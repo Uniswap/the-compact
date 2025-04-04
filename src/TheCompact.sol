@@ -45,6 +45,34 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         _registerWithDefaults(claimHash, typehash);
     }
 
+    function depositAndRegisterFor(address recipient, address allocator, ResetPeriod resetPeriod, Scope scope, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
+        external
+        payable
+        returns (uint256 id, bytes32 claimhash)
+    {
+        id = _performCustomNativeTokenDeposit(allocator, resetPeriod, scope, recipient);
+
+        claimhash = _registerUsingClaimWithWitness(recipient, id, msg.value, arbiter, nonce, expires, typehash, witness, resetPeriod);
+    }
+
+    function depositAndRegisterFor(
+        address recipient,
+        address token,
+        address allocator,
+        ResetPeriod resetPeriod,
+        Scope scope,
+        uint256 amount,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) external returns (uint256 id, bytes32 claimhash) {
+        id = _performCustomERC20Deposit(token, allocator, resetPeriod, scope, amount, recipient);
+
+        claimhash = _registerUsingClaimWithWitness(recipient, id, amount, arbiter, nonce, expires, typehash, witness, resetPeriod);
+    }
+
     function deposit(address allocator, ResetPeriod resetPeriod, Scope scope, address recipient) external payable returns (uint256) {
         return _performCustomNativeTokenDeposit(allocator, resetPeriod, scope, recipient);
     }
@@ -63,6 +91,16 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         _processBatchDeposit(idsAndAmounts, msg.sender);
 
         return _registerBatch(claimHashesAndTypehashes, duration);
+    }
+
+    function depositAndRegisterFor(address recipient, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness, ResetPeriod resetPeriod)
+        external
+        payable
+        returns (bytes32 claimhash)
+    {
+        _processBatchDeposit(idsAndAmounts, recipient);
+
+        claimhash = _registerUsingBatchClaimWithWitness(recipient, idsAndAmounts, arbiter, nonce, expires, typehash, witness, resetPeriod);
     }
 
     function deposit(

@@ -121,6 +121,62 @@ interface ITheCompact {
     function depositAndRegister(address token, address allocator, uint256 amount, bytes32 claimHash, bytes32 typehash) external returns (uint256 id);
 
     /**
+     * @notice External payable function for depositing native tokens and simultaneously registering a
+     * compact on behalf of someone else. The amount of the claim must be explicitly provided otherwise
+     * a wrong claimhash may be derived.
+     * @param recipient   The recipient of the ERC6909 token.
+     * @param allocator   The address of the allocator mediating the resource lock.
+     * @param resetPeriod The duration after which the resource lock can be reset once a forced withdrawal is initiated.
+     * @param scope       The scope of the resource lock (multichain or single chain).
+     * @param arbiter     The account tasked with verifying and submitting the claim.
+     * @param nonce       A parameter to enforce replay protection, scoped to allocator.
+     * @param expires     The time at which the claim expires.
+     * @param typehash    The EIP-712 typehash associated with the registered compact.
+     * @param witness     Hash of the witness data.
+     * @return id         The ERC6909 token identifier of the associated resource lock.
+     * @return claimhash  Hash of the claim. Can be used to verify the expected claim was registered.
+     */
+    function depositAndRegisterFor(address recipient, address allocator, ResetPeriod resetPeriod, Scope scope, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
+        external
+        payable
+        returns (uint256 id, bytes32 claimhash);
+
+    /**
+     * @notice External function for depositing ERC20 tokens and simultaneously registering a
+     * compact on behalf of someone else. The caller must directly approve The Compact to transfer
+     * a sufficient amount of the ERC20 token on its behalf. The ERC6909 token amount received by
+     * designated recipient the caller is derived from the difference between the starting and ending
+     * balance held in the resource lock, which may differ from the amount transferred depending on
+     * the implementation details of the respective token.
+     * @param recipient   The recipient of the ERC6909 token.
+     * @param token       The address of the ERC20 token to deposit.
+     * @param allocator   The address of the allocator mediating the resource lock.
+     * @param resetPeriod The duration after which the resource lock can be reset once a forced withdrawal is initiated.
+     * @param scope       The scope of the resource lock (multichain or single chain).
+     * @param amount      The amount of tokens to deposit.
+     * @param arbiter     The account tasked with verifying and submitting the claim.
+     * @param nonce       A parameter to enforce replay protection, scoped to allocator.
+     * @param expires     The time at which the claim expires.
+     * @param typehash    The EIP-712 typehash associated with the registered compact.
+     * @param witness     Hash of the witness data.
+     * @return id         The ERC6909 token identifier of the associated resource lock.
+     * @return claimhash  Hash of the claim. Can be used to verify the expected claim was registered.
+     */
+    function depositAndRegisterFor(
+        address recipient,
+        address token,
+        address allocator,
+        ResetPeriod resetPeriod,
+        Scope scope,
+        uint256 amount,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) external returns (uint256 id, bytes32 claimhash);
+
+    /**
      * @notice External payable function for depositing native tokens into a resource lock with
      * custom reset period and scope parameters. The ERC6909 token amount received by the recipient
      * will match the amount of native tokens sent with the transaction.
@@ -178,6 +234,28 @@ interface ITheCompact {
      * @return                        Whether the batch deposit and claim hash registration was successfully completed.
      */
     function depositAndRegister(uint256[2][] calldata idsAndAmounts, bytes32[2][] calldata claimHashesAndTypehashes, uint256 duration) external payable returns (bool);
+
+    /**
+     * @notice External function for depositing ERC20 tokens and simultaneously registering a
+     * batch compact on behalf of someone else. The caller must directly approve The Compact
+     * to transfer a sufficient amount of the ERC20 token on its behalf. The ERC6909 token amount
+     * received by designated recipient the caller is derived from the difference between the
+     * starting and ending balance held in the resource lock, which may differ from the amount
+     * transferred depending on the implementation details of the respective token.
+     * @param recipient     The recipient of the ERC6909 token.
+     * @param idsAndAmounts The address of the ERC20 token to deposit.
+     * @param arbiter       The account tasked with verifying and submitting the claim.
+     * @param nonce         A parameter to enforce replay protection, scoped to allocator.
+     * @param expires       The time at which the claim expires.
+     * @param typehash      The EIP-712 typehash associated with the registered compact.
+     * @param witness       Hash of the witness data.
+     * @param resetPeriod   The duration after which the resource lock can be reset once a forced withdrawal is initiated.
+     * @return claimhash  Hash of the claim. Can be used to verify the expected claim was registered.
+     */
+    function depositAndRegisterFor(address recipient, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness, ResetPeriod resetPeriod)
+        external
+        payable
+        returns (bytes32 claimhash);
 
     /**
      * @notice External function for depositing ERC20 tokens using Permit2 authorization. The

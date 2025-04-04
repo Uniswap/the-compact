@@ -2,6 +2,9 @@
 pragma solidity ^0.8.27;
 
 import { RegistrationLib } from "./RegistrationLib.sol";
+import { HashLib } from "./HashLib.sol";
+import { COMPACT_TYPEHASH, BATCH_COMPACT_TYPEHASH } from "../types/EIP712Types.sol";
+import { ResetPeriod } from "../types/ResetPeriod.sol";
 
 /**
  * @title RegistrationLogic
@@ -59,5 +62,63 @@ contract RegistrationLogic {
      */
     function _getRegistrationStatus(address sponsor, bytes32 claimHash, bytes32 typehash) internal view returns (uint256 expires) {
         return sponsor.toRegistrationExpiration(claimHash, typehash);
+    }
+
+    //// Registration of specific claims ////
+
+    /**
+     * @notice Internal function to register a claim with witness by its components.
+     * @dev Constructs and registers the compact that consists exactly of the provided
+     * arguments.
+     * @param sponsor     Account that the claim should be registered for.
+     * @param tokenId     Identifier for the associated token & lock.
+     * @param amount      Claim's associated number of tokens.
+     * @param arbiter     Account verifying and initiating the settlement of the claim.
+     * @param nonce       Allocator replay protection nonce.
+     * @param expires     Timestamp when the claim expires. Not to be confused with the reset
+     * time of the compact.
+     * @param typehash    Typehash of the entire compact. Including the subtypes of the
+     * witness
+     * @param witness     EIP712 structured hash of witness.
+     * @param resetPeriod Duration after which the resource locks can be reset once forced
+     * withdrawals are initiated.
+     */
+    function _registerUsingClaimWithWitness(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness, ResetPeriod resetPeriod)
+        internal
+        returns (bytes32 claimhash)
+    {
+        claimhash = HashLib.toFlatMessageHashWithWitness(sponsor, tokenId, amount, arbiter, nonce, expires, typehash, witness);
+        sponsor.registerCompact(claimhash, typehash, resetPeriod);
+    }
+
+    /**
+     * @notice Internal function to register a batch claim with witness by its components.
+     * @dev Constructs and registers the compact that consists exactly of the provided
+     * arguments.
+     * @param sponsor       Account that the claim should be registered for.
+     * @param idsAndAmounts Ids and amounts associated with the to be registered claim.
+     * @param arbiter       Account verifying and initiating the settlement of the claim.
+     * @param nonce         Nonce to register the claim at. The nonce is not checked to be
+     * unspent
+     * @param expires       Timestamp when the claim expires. Not to be confused with the
+     * reset time of the compact.
+     * @param typehash      Typehash of the entire compact. Including the subtypes of the
+     * witness
+     * @param witness       EIP712 structured hash of witness.
+     * @param resetPeriod   Duration after which the resource locks can be reset once forced
+     * withdrawals are initiated.
+     */
+    function _registerUsingBatchClaimWithWitness(
+        address sponsor,
+        uint256[2][] calldata idsAndAmounts,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness,
+        ResetPeriod resetPeriod
+    ) internal returns (bytes32 claimhash) {
+        claimhash = HashLib.toFlatBatchClaimWithWitnessMessageHash(sponsor, idsAndAmounts, arbiter, nonce, expires, typehash, witness);
+        sponsor.registerCompact(claimhash, typehash, resetPeriod);
     }
 }

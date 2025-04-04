@@ -78,8 +78,10 @@ contract TheCompactTest is Test {
         // deploy using create2 (need to rederive salt and target address when changing code):
         bytes32 salt = bytes32(0x00000000000000000000000000000000000000008a0f466a78cd1102ce3d82f7);
         theCompact = TheCompact(ImmutableCreate2Factory(immutableCreate2Factory).safeCreate2(salt, type(TheCompact).creationCode));
-        // address targetAddress = address(0xddD0Cdada636059D154Da844e329cE39F36e38BA);
         // assertEq(address(theCompact), targetAddress);
+
+        // // to deploy using standard create:
+        // theCompact = new TheCompact();
 
         (swapper, swapperPrivateKey) = makeAddrAndKey("swapper");
         address allocatorSigningKey;
@@ -840,6 +842,67 @@ contract TheCompactTest is Test {
         assertEq(theCompact.balanceOf(swapper, id), 0);
         assertEq(theCompact.balanceOf(recipientOne, id), amountOne);
         assertEq(theCompact.balanceOf(recipientTwo, id), amountTwo);
+    }
+
+    function test_registerForAndClaim() public {
+        ResetPeriod resetPeriod = ResetPeriod.TenMinutes;
+        Scope scope = Scope.Multichain;
+        uint256 amount = 1e18;
+        uint256 nonce = 0;
+        uint256 expires = block.timestamp + 1000;
+        address claimant = 0x1111111111111111111111111111111111111111;
+        address arbiter = 0x2222222222222222222222222222222222222222;
+
+        address swapperSponsor = makeAddr("swapperSponsor");
+
+        vm.prank(allocator);
+        theCompact.__registerAllocator(allocator, "");
+
+        vm.prank(swapper);
+        token.transfer(swapperSponsor, amount);
+
+        vm.prank(swapperSponsor);
+        token.approve(address(theCompact), 1e18);
+
+        string memory witnessTypestring = "Witness witness)Witness(uint256 witnessArgument)";
+        uint256 witnessArgument = 234;
+        bytes32 witness = keccak256(abi.encode(witnessArgument));
+
+        bytes32 typehash = keccak256("Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount,Witness witness)Witness(uint256 witnessArgument)");
+
+        vm.prank(swapperSponsor);
+        (uint256 id, bytes32 registeredClaimHash) = theCompact.depositAndRegisterFor(address(swapper), address(token), allocator, resetPeriod, scope, amount, arbiter, nonce, expires, typehash, witness);
+        vm.snapshotGasLastCall("depositRegisterFor");
+
+        assertEq(theCompact.balanceOf(swapper, id), amount);
+        assertEq(token.balanceOf(address(theCompact)), amount);
+
+        bytes32 claimHash = keccak256(abi.encode(typehash, arbiter, swapper, nonce, expires, id, amount, witness));
+        assertEq(registeredClaimHash, claimHash);
+
+        bytes32 digest = keccak256(abi.encodePacked(bytes2(0x1901), theCompact.DOMAIN_SEPARATOR(), claimHash));
+
+        (bool isActive, uint256 expiresAt) = theCompact.getRegistrationStatus(swapper, claimHash, typehash);
+        assert(isActive);
+        assertEq(expiresAt, block.timestamp + 10 * 60);
+
+        bytes memory sponsorSignature = "";
+
+        (bytes32 r, bytes32 vs) = vm.signCompact(allocatorPrivateKey, digest);
+        bytes memory allocatorSignature = abi.encodePacked(r, vs);
+
+        SplitComponent[] memory recipients = new SplitComponent[](1);
+        recipients[0] = SplitComponent({ claimant: uint256(bytes32(abi.encodePacked(bytes12(bytes32(id)), claimant))), amount: amount });
+
+        Claim memory claim = Claim(allocatorSignature, sponsorSignature, swapper, nonce, expires, witness, witnessTypestring, id, amount, recipients);
+
+        vm.prank(arbiter);
+        bytes32 returnedClaimHash = theCompact.claim(claim);
+        assertEq(returnedClaimHash, claimHash);
+
+        assertEq(token.balanceOf(address(theCompact)), amount);
+        assertEq(theCompact.balanceOf(swapper, id), 0);
+        assertEq(theCompact.balanceOf(claimant, id), amount);
     }
 
     function test_claimAndWithdraw() public {

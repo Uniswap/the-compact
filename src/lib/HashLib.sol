@@ -41,6 +41,7 @@ library HashLib {
     using EfficiencyLib for uint256;
     using TransferFunctionCastLib for function(BatchTransfer calldata, uint256) internal view returns (bytes32);
     using HashLib for uint256;
+    using HashLib for uint256[2][];
     using HashLib for BatchTransfer;
 
     /**
@@ -605,6 +606,25 @@ library HashLib {
     }
 
     /**
+     * @notice Internal pure function for deriving the hash of ids and amounts provided.
+     * @param idsAndAmounts      An array of ids and amounts.
+     * @return idsAndAmountsHash The hash of the ids and amounts.
+     */
+    function toIdsAndAmountsHash(uint256[2][] calldata idsAndAmounts) internal pure returns (bytes32 idsAndAmountsHash) {
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let ptr := mload(0x40)
+            // Get the total length of the calldata slice.
+            // For every 1 instance of uint256[], it takes up 2 words.
+            let len := mul(idsAndAmounts.length, 0x40)
+            // Copy calldata into memory at the free memory pointer.
+            calldatacopy(ptr, idsAndAmounts.offset, len)
+            // Compute the hash of the calldata that has been copied into memory.
+            idsAndAmountsHash := keccak256(ptr, len)
+        }
+    }
+
+    /**
      * @notice Internal pure function for deriving the hash of the ids and amounts.
      * @param claims             An array of SplitBatchClaimComponent structs.
      * @return idsAndAmountsHash The hash of the ids and amounts.
@@ -664,6 +684,76 @@ library HashLib {
 
             // Restore the free memory pointer.
             mstore(0x40, m)
+        }
+    }
+
+    //// Registration Hashes ////
+
+    /**
+     * @notice Internal pure function for retrieving an EIP-712 claim hash.
+     * @param sponsor         The account sponsoring the claimed compact.
+     * @param tokenId         Identifier for the associated token & lock.
+     * @param amount         Claim's associated number of tokens.
+     * @param arbiter        Account verifying and initiating the settlement of the claim.
+     * @param nonce         Allocator replay protection nonce.
+     * @param expires         Timestamp when the claim expires.
+     * @param typehash         Typehash of the entire compact. Including the subtypes.
+     * @param witness         EIP712 structured hash of witness.
+     * @return messageHash The corresponding EIP-712 messagehash.
+     */
+    function toFlatMessageHashWithWitness(address sponsor, uint256 tokenId, uint256 amount, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
+        internal
+        pure
+        returns (bytes32 messageHash)
+    {
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let m := mload(0x40)
+
+            mstore(m, typehash)
+            mstore(add(m, 0x20), arbiter)
+            mstore(add(m, 0x40), sponsor)
+            mstore(add(m, 0x60), nonce)
+            mstore(add(m, 0x80), expires)
+            mstore(add(m, 0xa0), tokenId)
+            mstore(add(m, 0xc0), amount)
+            mstore(add(m, 0xe0), witness)
+            // Derive the message hash from the prepared data.
+            messageHash := keccak256(m, 0x100)
+        }
+    }
+
+    /**
+     * @notice Internal pure function for retrieving an EIP-712 claim hash.
+     * @param sponsor       The account sponsoring the claimed compact.
+     * @param idsAndAmounts An array with IDs and aggregate transfer amounts.
+     * @param arbiter       Account verifying and initiating the settlement of the claim.
+     * @param nonce         Allocator replay protection nonce.
+     * @param expires       Timestamp when the claim expires.
+     * @param typehash      Typehash of the entire compact. Including the subtypes.
+     * @param witness       EIP712 structured hash of witness.
+     * @return messageHash  The corresponding EIP-712 messagehash.
+     */
+    function toFlatBatchClaimWithWitnessMessageHash(address sponsor, uint256[2][] calldata idsAndAmounts, address arbiter, uint256 nonce, uint256 expires, bytes32 typehash, bytes32 witness)
+        internal
+        pure
+        returns (bytes32 messageHash)
+    {
+        bytes32 idsAndAmountsHash = idsAndAmounts.toIdsAndAmountsHash();
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let m := mload(0x40)
+
+            mstore(m, typehash)
+            mstore(add(m, 0x20), arbiter)
+            mstore(add(m, 0x40), sponsor)
+            mstore(add(m, 0x60), nonce)
+            mstore(add(m, 0x80), expires)
+            mstore(add(m, 0xa0), idsAndAmountsHash)
+            mstore(add(m, 0xc0), witness)
+
+            // Derive the message hash from the prepared data.
+            messageHash := keccak256(m, 0xe0)
         }
     }
 }
