@@ -11,6 +11,7 @@ import { RegistrationLib } from "./RegistrationLib.sol";
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { IdLib } from "./IdLib.sol";
 import { ValidityLib } from "./ValidityLib.sol";
+import { TransferLib } from "./TransferLib.sol";
 
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.sol";
@@ -28,8 +29,10 @@ import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.so
  * to the associated permit2 deposit function interfaces!
  */
 contract DepositViaPermit2Logic is DepositLogic {
+    using TransferLib for address;
     using DepositViaPermit2Lib for bytes32;
     using DepositViaPermit2Lib for uint256;
+    using IdLib for uint96;
     using IdLib for uint256;
     using IdLib for address;
     using IdLib for ResetPeriod;
@@ -59,12 +62,16 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @param signature   The Permit2 signature from the depositor authorizing the deposit.
      * @return            The ERC6909 token identifier of the associated resource lock.
      */
-    function _depositViaPermit2(address token, address recipient, bytes calldata signature) internal returns (uint256) {
+    function _depositViaPermit2(address token, address recipient, bytes calldata signature)
+        internal
+        returns (uint256)
+    {
         // Derive the CompactDeposit witness hash.
         bytes32 witness = uint256(0xa4).asStubborn().deriveCompactDepositWitnessHash();
 
         // Set reentrancy lock, get initial balance, and begin preparing Permit2 call data.
-        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) = _setReentrancyLockAndStartPreparingPermit2Call(token);
+        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) =
+            _setReentrancyLockAndStartPreparingPermit2Call(token);
 
         // Insert the CompactDeposit typestring fragment.
         typestringMemoryLocation.insertCompactDepositTypestring();
@@ -99,7 +106,6 @@ contract DepositViaPermit2Logic is DepositLogic {
      * specified compact category.
      * @param token           The address of the ERC20 token to deposit.
      * @param depositor       The account signing the permit2 authorization and depositing the tokens.
-     * @param resetPeriod     The duration after which the resource lock can be reset once a forced withdrawal is initiated.
      * @param claimHash       A bytes32 hash derived from the details of the compact.
      * @param compactCategory The category of the compact being registered (Compact, BatchCompact, or MultichainCompact).
      * @param witness         Additional data used in generating the claim hash.
@@ -109,17 +115,18 @@ contract DepositViaPermit2Logic is DepositLogic {
     function _depositAndRegisterViaPermit2(
         address token,
         address depositor, // also recipient
-        ResetPeriod resetPeriod,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
         bytes calldata signature
     ) internal returns (uint256) {
         // Set reentrancy lock, get initial balance, and begin preparing Permit2 call data.
-        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) = _setReentrancyLockAndStartPreparingPermit2Call(token);
+        (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) =
+            _setReentrancyLockAndStartPreparingPermit2Call(token);
 
         // Continue preparing Permit2 call data and get activation and compact typehashes.
-        (bytes32 activationTypehash, bytes32 compactTypehash) = typestringMemoryLocation.writeWitnessAndGetTypehashes(compactCategory, witness, bool(false).asStubborn());
+        (bytes32 activationTypehash, bytes32 compactTypehash) =
+            typestringMemoryLocation.writeWitnessAndGetTypehashes(compactCategory, witness, bool(false).asStubborn());
 
         // Derive the activation witness hash and store it.
         activationTypehash.deriveAndWriteWitnessHash(id, claimHash, m, 0x100);
@@ -137,7 +144,7 @@ contract DepositViaPermit2Logic is DepositLogic {
         _checkBalanceAndDeposit(token, depositor, id, initialBalance);
 
         // Register the compact.
-        depositor.registerCompact(claimHash, compactTypehash, resetPeriod);
+        depositor.registerCompact(claimHash, compactTypehash);
 
         // Clear reentrancy lock.
         _clearReentrancyGuard();
@@ -162,15 +169,25 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @param signature   The Permit2 signature from the depositor authorizing the deposits.
      * @return            Array of ERC6909 token identifiers for the associated resource locks.
      */
-    function _depositBatchViaPermit2(ISignatureTransfer.TokenPermissions[] calldata permitted, address recipient, bytes calldata signature) internal returns (uint256[] memory) {
+    function _depositBatchViaPermit2(
+        ISignatureTransfer.TokenPermissions[] calldata permitted,
+        address recipient,
+        bytes calldata signature
+    ) internal returns (uint256[] memory) {
         // Set reentrancy guard, perform initial native deposit if present, and get initial token balances.
-        (uint256 totalTokensLessInitialNative, bool firstUnderlyingTokenIsNative, uint256[] memory ids, uint256[] memory initialTokenBalances) = _preprocessAndPerformInitialNativeDeposit(permitted, recipient);
+        (
+            uint256 totalTokensLessInitialNative,
+            bool firstUnderlyingTokenIsNative,
+            uint256[] memory ids,
+            uint256[] memory initialTokenBalances
+        ) = _preprocessAndPerformInitialNativeDeposit(permitted, recipient);
 
         // Derive the CompactDeposit witness hash.
         bytes32 witness = uint256(0x84).asStubborn().deriveCompactDepositWitnessHash();
 
         // Begin preparing Permit2 call data.
-        (uint256 m, uint256 typestringMemoryLocation) = totalTokensLessInitialNative.beginPreparingBatchDepositPermit2Calldata(firstUnderlyingTokenIsNative);
+        (uint256 m, uint256 typestringMemoryLocation) =
+            totalTokensLessInitialNative.beginPreparingBatchDepositPermit2Calldata(firstUnderlyingTokenIsNative);
 
         // Insert the CompactDeposit typestring fragment.
         typestringMemoryLocation.insertCompactDepositTypestring();
@@ -208,7 +225,6 @@ contract DepositViaPermit2Logic is DepositLogic {
      * Compact, BatchCompact, or MultichainCompact payload matching the specified compact category.
      * @param depositor       The account signing the permit2 authorization and depositing the tokens.
      * @param permitted       Array of token permissions specifying the deposited tokens and amounts.
-     * @param resetPeriod     The duration after which the resource locks can be reset once forced withdrawals are initiated.
      * @param claimHash       A bytes32 hash derived from the details of the compact.
      * @param compactCategory The category of the compact being registered (Compact, BatchCompact, or MultichainCompact).
      * @param witness         Additional data used in generating the claim hash.
@@ -218,26 +234,33 @@ contract DepositViaPermit2Logic is DepositLogic {
     function _depositBatchAndRegisterViaPermit2(
         address depositor,
         ISignatureTransfer.TokenPermissions[] calldata permitted,
-        ResetPeriod resetPeriod,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
         bytes calldata signature
     ) internal returns (uint256[] memory) {
         // Set reentrancy guard, perform initial native deposit if present, and get initial token balances.
-        (uint256 totalTokensLessInitialNative, bool firstUnderlyingTokenIsNative, uint256[] memory ids, uint256[] memory initialTokenBalances) = _preprocessAndPerformInitialNativeDeposit(permitted, depositor);
+        (
+            uint256 totalTokensLessInitialNative,
+            bool firstUnderlyingTokenIsNative,
+            uint256[] memory ids,
+            uint256[] memory initialTokenBalances
+        ) = _preprocessAndPerformInitialNativeDeposit(permitted, depositor);
 
         // Derive the hash of the resource lock ids.
         uint256 idsHash;
         assembly ("memory-safe") {
-            idsHash := keccak256(add(ids, 0x20), shl(5, add(totalTokensLessInitialNative, firstUnderlyingTokenIsNative)))
+            idsHash :=
+                keccak256(add(ids, 0x20), shl(5, add(totalTokensLessInitialNative, firstUnderlyingTokenIsNative)))
         }
 
         // Begin preparing Permit2 call data.
-        (uint256 m, uint256 typestringMemoryLocation) = totalTokensLessInitialNative.beginPreparingBatchDepositPermit2Calldata(firstUnderlyingTokenIsNative);
+        (uint256 m, uint256 typestringMemoryLocation) =
+            totalTokensLessInitialNative.beginPreparingBatchDepositPermit2Calldata(firstUnderlyingTokenIsNative);
 
         // Prepare the typestring fragment and get batch activation and compact typehashes.
-        (bytes32 activationTypehash, bytes32 compactTypehash) = typestringMemoryLocation.writeWitnessAndGetTypehashes(compactCategory, witness, bool(true).asStubborn());
+        (bytes32 activationTypehash, bytes32 compactTypehash) =
+            typestringMemoryLocation.writeWitnessAndGetTypehashes(compactCategory, witness, bool(true).asStubborn());
 
         // Derive the batch activation witness hash and store it.
         activationTypehash.deriveAndWriteWitnessHash(idsHash, claimHash, m, 0x80);
@@ -249,7 +272,14 @@ contract DepositViaPermit2Logic is DepositLogic {
             let witnessLength := witness.length
 
             // Derive the total memory offset for the witness.
-            let totalWitnessMemoryOffset := and(add(add(0xf3, add(witnessLength, iszero(iszero(witnessLength)))), add(mul(eq(compactCategory, 1), 0x0b), shl(6, eq(compactCategory, 2)))), not(0x1f))
+            let totalWitnessMemoryOffset :=
+                and(
+                    add(
+                        add(0xf3, add(witnessLength, iszero(iszero(witnessLength)))),
+                        add(mul(eq(compactCategory, 1), 0x0b), shl(6, eq(compactCategory, 2)))
+                    ),
+                    not(0x1f)
+                )
 
             // Derive the signature offset value.
             signatureOffsetValue := add(add(0x180, shl(7, totalTokensLessInitialNative)), totalWitnessMemoryOffset)
@@ -262,7 +292,7 @@ contract DepositViaPermit2Logic is DepositLogic {
         _verifyBalancesAndPerformDeposits(ids, permitted, initialTokenBalances, depositor, firstUnderlyingTokenIsNative);
 
         // Register the compact.
-        depositor.registerCompact(claimHash, compactTypehash, resetPeriod);
+        depositor.registerCompact(claimHash, compactTypehash);
 
         // Return the ERC6909 token identifiers of the associated resource locks.
         return ids;
@@ -277,9 +307,17 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @return ids                          Array of ERC6909 token identifiers.
      * @return initialTokenBalances         Array of initial token balances.
      */
-    function _preprocessAndPerformInitialNativeDeposit(ISignatureTransfer.TokenPermissions[] calldata permitted, address recipient)
+    function _preprocessAndPerformInitialNativeDeposit(
+        ISignatureTransfer.TokenPermissions[] calldata permitted,
+        address recipient
+    )
         private
-        returns (uint256 totalTokensLessInitialNative, bool firstUnderlyingTokenIsNative, uint256[] memory ids, uint256[] memory initialTokenBalances)
+        returns (
+            uint256 totalTokensLessInitialNative,
+            bool firstUnderlyingTokenIsNative,
+            uint256[] memory ids,
+            uint256[] memory initialTokenBalances
+        )
     {
         // Set reentrancy guard.
         _setReentrancyGuard();
@@ -302,7 +340,13 @@ contract DepositViaPermit2Logic is DepositLogic {
             //  * the callvalue is zero but the first token is native
             //  * the callvalue is nonzero but the first token is non-native
             //  * the first token is non-native and the callvalue doesn't equal the first amount
-            if or(iszero(totalTokens), or(eq(firstUnderlyingTokenIsNative, iszero(callvalue())), and(firstUnderlyingTokenIsNative, iszero(eq(callvalue(), calldataload(add(permittedOffset, 0x20))))))) {
+            if or(
+                iszero(totalTokens),
+                or(
+                    eq(firstUnderlyingTokenIsNative, iszero(callvalue())),
+                    and(firstUnderlyingTokenIsNative, iszero(eq(callvalue(), calldataload(add(permittedOffset, 0x20)))))
+                )
+            ) {
                 // revert InvalidBatchDepositStructure()
                 mstore(0, 0xca0fc08e)
                 revert(0x1c, 0x04)
@@ -316,14 +360,14 @@ contract DepositViaPermit2Logic is DepositLogic {
         }
 
         // Get the initial resource lock id.
-        uint256 initialId = address(0).toIdIfRegistered(scope, resetPeriod, allocator);
+        uint256 initialId = address(0).toIdIfRegistered(allocator.usingAllocatorId().toLockTag(scope, resetPeriod));
 
         // Allocate ids array.
         ids = new uint256[](totalTokens);
 
         // Perform initial native deposit if present.
         if (firstUnderlyingTokenIsNative) {
-            _deposit(recipient, initialId, msg.value);
+            recipient.deposit(initialId, msg.value);
 
             // Set the initial id using the native resource lock.
             ids[0] = initialId;
@@ -335,7 +379,9 @@ contract DepositViaPermit2Logic is DepositLogic {
         }
 
         // Prepare ids and get initial token balances.
-        initialTokenBalances = _prepareIdsAndGetBalances(ids, totalTokensLessInitialNative, firstUnderlyingTokenIsNative, permitted, initialId);
+        initialTokenBalances = _prepareIdsAndGetBalances(
+            ids, totalTokensLessInitialNative, firstUnderlyingTokenIsNative, permitted, initialId
+        );
     }
 
     /**
@@ -347,7 +393,10 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @return m                         The memory pointer for the Permit2 call data.
      * @return typestringMemoryLocation  The memory location for the typestring.
      */
-    function _setReentrancyLockAndStartPreparingPermit2Call(address token) private returns (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation) {
+    function _setReentrancyLockAndStartPreparingPermit2Call(address token)
+        private
+        returns (uint256 id, uint256 initialBalance, uint256 m, uint256 typestringMemoryLocation)
+    {
         // Set reentrancy guard.
         _setReentrancyGuard();
 
@@ -364,7 +413,7 @@ contract DepositViaPermit2Logic is DepositLogic {
         }
 
         // Get the ERC6909 token identifier of the associated resource lock.
-        id = token.excludingNative().toIdIfRegistered(scope, resetPeriod, allocator);
+        id = token.excludingNative().toIdIfRegistered(allocator.usingAllocatorId().toLockTag(scope, resetPeriod));
 
         // Get the initial balance of the token in the contract.
         initialBalance = token.balanceOf(address(this));
@@ -397,7 +446,12 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @param signatureOffsetValue    The signature offset value.
      * @param signature               The Permit2 signature.
      */
-    function _writeSignatureAndPerformPermit2Call(uint256 m, uint256 signatureOffsetLocation, uint256 signatureOffsetValue, bytes calldata signature) private {
+    function _writeSignatureAndPerformPermit2Call(
+        uint256 m,
+        uint256 signatureOffsetLocation,
+        uint256 signatureOffsetValue,
+        bytes calldata signature
+    ) private {
         // Determine if Permit2 is deployed.
         bool isPermit2Deployed = _isPermit2Deployed();
 
@@ -416,7 +470,12 @@ contract DepositViaPermit2Logic is DepositLogic {
             calldatacopy(add(signatureMemoryOffset, 0x20), signature.offset, signatureLength)
 
             // Perform the Permit2 call.
-            if iszero(and(isPermit2Deployed, call(gas(), _PERMIT2, 0, add(m, 0x1c), add(0x24, add(signatureOffsetValue, signatureLength)), 0, 0))) {
+            if iszero(
+                and(
+                    isPermit2Deployed,
+                    call(gas(), _PERMIT2, 0, add(m, 0x1c), add(0x24, add(signatureOffsetValue, signatureLength)), 0, 0)
+                )
+            ) {
                 // Bubble up if the call failed and there's data.
                 // NOTE: consider evaluating remaining gas to protect against revert bombing
                 if returndatasize() {
@@ -458,14 +517,15 @@ contract DepositViaPermit2Logic is DepositLogic {
             // Iterate through each token.
             for (uint256 i = 0; i < totalTokensLessInitialNative; ++i) {
                 // Get the token balance and initial balance.
-                tokenBalance = permittedTokens[i + firstUnderlyingTokenIsNative.asUint256()].token.balanceOf(address(this));
+                tokenBalance =
+                    permittedTokens[i + firstUnderlyingTokenIsNative.asUint256()].token.balanceOf(address(this));
                 initialBalance = initialTokenBalances[i];
 
                 // Set the error buffer if the initial balance is greater than or equal to the token balance.
                 errorBuffer |= (initialBalance >= tokenBalance).asUint256();
 
                 // Perform the deposit.
-                _deposit(recipient, ids[i + firstUnderlyingTokenIsNative.asUint256()], tokenBalance - initialBalance);
+                recipient.deposit(ids[i + firstUnderlyingTokenIsNative.asUint256()], tokenBalance - initialBalance);
             }
         }
 
@@ -492,11 +552,13 @@ contract DepositViaPermit2Logic is DepositLogic {
      * @param id                           The ERC6909 token identifier of the associated resource lock.
      * @return tokenBalances               The token balances in the contract.
      */
-    function _prepareIdsAndGetBalances(uint256[] memory ids, uint256 totalTokensLessInitialNative, bool firstUnderlyingTokenIsNative, ISignatureTransfer.TokenPermissions[] calldata permitted, uint256 id)
-        private
-        view
-        returns (uint256[] memory tokenBalances)
-    {
+    function _prepareIdsAndGetBalances(
+        uint256[] memory ids,
+        uint256 totalTokensLessInitialNative,
+        bool firstUnderlyingTokenIsNative,
+        ISignatureTransfer.TokenPermissions[] calldata permitted,
+        uint256 id
+    ) private view returns (uint256[] memory tokenBalances) {
         unchecked {
             // Allocate token balances array.
             tokenBalances = new uint256[](totalTokensLessInitialNative);

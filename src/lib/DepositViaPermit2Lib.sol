@@ -65,7 +65,10 @@ library DepositViaPermit2Lib {
      * @return m The memory pointer to the start of the prepared calldata.
      * @return typestringMemoryLocation The memory pointer to the start of the typestring.
      */
-    function beginPreparingBatchDepositPermit2Calldata(uint256 totalTokensLessInitialNative, bool firstUnderlyingTokenIsNative) internal view returns (uint256 m, uint256 typestringMemoryLocation) {
+    function beginPreparingBatchDepositPermit2Calldata(
+        uint256 totalTokensLessInitialNative,
+        bool firstUnderlyingTokenIsNative
+    ) internal view returns (uint256 m, uint256 typestringMemoryLocation) {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             m := mload(0x40)
@@ -134,16 +137,20 @@ library DepositViaPermit2Lib {
      * @return activationTypehash The derived activation typehash.
      * @return compactTypehash    The derived compact typehash.
      */
-    function writeWitnessAndGetTypehashes(uint256 memoryLocation, CompactCategory category, string calldata witness, bool usingBatch)
-        internal
-        pure
-        returns (bytes32 activationTypehash, bytes32 compactTypehash)
-    {
+    function writeWitnessAndGetTypehashes(
+        uint256 memoryLocation,
+        CompactCategory category,
+        string calldata witness,
+        bool usingBatch
+    ) internal pure returns (bytes32 activationTypehash, bytes32 compactTypehash) {
         assembly ("memory-safe") {
             // Internal assembly function for writing the witness and typehashes.
             // Used to enable leaving the inline assembly scope early when the
             // witness is empty (no-witness case).
-            function writeWitnessAndGetTypehashes(memLocation, c, witnessOffset, witnessLength, usesBatch) -> derivedActivationTypehash, derivedCompactTypehash {
+            function writeWitnessAndGetTypehashes(memLocation, c, witnessOffset, witnessLength, usesBatch) ->
+                derivedActivationTypehash,
+                derivedCompactTypehash
+            {
                 // Derive memory offset for the witness typestring data.
                 let memoryOffset := add(memLocation, 0x20)
 
@@ -206,14 +213,25 @@ library DepositViaPermit2Lib {
                 if iszero(categorySpecificEnd) {
                     // Prepare next typestring fragment using Multichain & Segment witness typestring.
                     mstore(categorySpecificStart, PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_ONE)
-                    mstore(add(categorySpecificStart, 0x20), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_TWO)
-                    mstore(add(categorySpecificStart, 0x40), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_THREE)
-                    mstore(add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FOUR)
-                    mstore(add(categorySpecificStart, 0x70), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_SIX)
-                    mstore(add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FIVE)
+                    mstore(
+                        add(categorySpecificStart, 0x20), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_TWO
+                    )
+                    mstore(
+                        add(categorySpecificStart, 0x40),
+                        PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_THREE
+                    )
+                    mstore(
+                        add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FOUR
+                    )
+                    mstore(
+                        add(categorySpecificStart, 0x90), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_SIX
+                    )
+                    mstore(
+                        add(categorySpecificStart, 0x80), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FIVE
+                    )
 
                     // Set memory pointers for Activation and Category-specific data end.
-                    categorySpecificEnd := add(categorySpecificStart, 0x90)
+                    categorySpecificEnd := add(categorySpecificStart, 0xb0)
                     categorySpecificStart := add(categorySpecificStart, 0x1a)
                 }
 
@@ -281,14 +299,17 @@ library DepositViaPermit2Lib {
                 mstore(memLocation, sub(add(tokenPermissionsFragmentStart, 0x2e), memoryOffset))
 
                 // Derive activation typehash.
-                derivedActivationTypehash := keccak256(activationStart, sub(tokenPermissionsFragmentStart, activationStart))
+                derivedActivationTypehash :=
+                    keccak256(activationStart, sub(tokenPermissionsFragmentStart, activationStart))
 
                 // Derive compact typehash.
-                derivedCompactTypehash := keccak256(categorySpecificStart, sub(tokenPermissionsFragmentStart, categorySpecificStart))
+                derivedCompactTypehash :=
+                    keccak256(categorySpecificStart, sub(tokenPermissionsFragmentStart, categorySpecificStart))
             }
 
             // Execute internal assembly function and store derived typehashes.
-            activationTypehash, compactTypehash := writeWitnessAndGetTypehashes(memoryLocation, category, witness.offset, witness.length, usingBatch)
+            activationTypehash, compactTypehash :=
+                writeWitnessAndGetTypehashes(memoryLocation, category, witness.offset, witness.length, usingBatch)
         }
     }
 
@@ -301,7 +322,13 @@ library DepositViaPermit2Lib {
      * @param memoryPointer      The memory pointer to the start of the memory region.
      * @param offset             The offset within the memory region to write the witness hash.
      */
-    function deriveAndWriteWitnessHash(bytes32 activationTypehash, uint256 idOrIdsHash, bytes32 claimHash, uint256 memoryPointer, uint256 offset) internal pure {
+    function deriveAndWriteWitnessHash(
+        bytes32 activationTypehash,
+        uint256 idOrIdsHash,
+        bytes32 claimHash,
+        uint256 memoryPointer,
+        uint256 offset
+    ) internal pure {
         assembly ("memory-safe") {
             // Retrieve and cache free memory pointer.
             let m := mload(0x40)

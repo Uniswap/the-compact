@@ -3,7 +3,9 @@ pragma solidity ^0.8.27;
 
 import { BatchTransfer, SplitBatchTransfer } from "../types/BatchClaims.sol";
 import { BasicTransfer, SplitTransfer } from "../types/Claims.sol";
-import { TransferComponent, SplitComponent, SplitByIdComponent, BatchClaimComponent, SplitBatchClaimComponent } from "../types/Components.sol";
+import {
+    TransferComponent, SplitComponent, SplitByIdComponent, SplitBatchClaimComponent
+} from "../types/Components.sol";
 import {
     COMPACT_TYPEHASH,
     COMPACT_TYPESTRING_FRAGMENT_ONE,
@@ -41,6 +43,7 @@ library HashLib {
     using EfficiencyLib for uint256;
     using TransferFunctionCastLib for function(BatchTransfer calldata, uint256) internal view returns (bytes32);
     using HashLib for uint256;
+    using HashLib for uint256[2][];
     using HashLib for BatchTransfer;
 
     /**
@@ -275,7 +278,11 @@ library HashLib {
      * @return messageHash        The EIP-712 compliant message hash.
      * @return typehash           The EIP-712 typehash.
      */
-    function toMessageHashWithWitness(uint256 claim, uint256 qualificationOffset) internal view returns (bytes32 messageHash, bytes32 typehash) {
+    function toMessageHashWithWitness(uint256 claim, uint256 qualificationOffset)
+        internal
+        view
+        returns (bytes32 messageHash, bytes32 typehash)
+    {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -321,7 +328,10 @@ library HashLib {
      * @param idsAndAmountsHash A hash of the ids and amounts.
      * @return messageHash      The EIP-712 compliant message hash.
      */
-    function toBatchTransferMessageHashUsingIdsAndAmountsHash(BatchTransfer calldata transfer, uint256 idsAndAmountsHash) internal view returns (bytes32 messageHash) {
+    function toBatchTransferMessageHashUsingIdsAndAmountsHash(
+        BatchTransfer calldata transfer,
+        uint256 idsAndAmountsHash
+    ) internal view returns (bytes32 messageHash) {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -378,7 +388,11 @@ library HashLib {
      * @return messageHash      The EIP-712 compliant message hash.
      * @return typehash         The EIP-712 typehash.
      */
-    function toBatchClaimWithWitnessMessageHash(uint256 claim, uint256 idsAndAmountsHash) internal view returns (bytes32 messageHash, bytes32 typehash) {
+    function toBatchClaimWithWitnessMessageHash(uint256 claim, uint256 idsAndAmountsHash)
+        internal
+        view
+        returns (bytes32 messageHash, bytes32 typehash)
+    {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -427,11 +441,13 @@ library HashLib {
      * @param idsAndAmountsHash         A hash of the ids and amounts.
      * @return messageHash              The EIP-712 compliant message hash.
      */
-    function toMultichainClaimMessageHash(uint256 claim, uint256 additionalOffset, bytes32 segmentTypehash, bytes32 multichainCompactTypehash, uint256 idsAndAmountsHash)
-        internal
-        view
-        returns (bytes32 messageHash)
-    {
+    function toMultichainClaimMessageHash(
+        uint256 claim,
+        uint256 additionalOffset,
+        bytes32 segmentTypehash,
+        bytes32 multichainCompactTypehash,
+        uint256 idsAndAmountsHash
+    ) internal view returns (bytes32 messageHash) {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -484,11 +500,13 @@ library HashLib {
      * @param idsAndAmountsHash         A hash of the ids and amounts.
      * @return messageHash              The EIP-712 compliant message hash.
      */
-    function toExogenousMultichainClaimMessageHash(uint256 claim, uint256 additionalOffset, bytes32 segmentTypehash, bytes32 multichainCompactTypehash, uint256 idsAndAmountsHash)
-        internal
-        view
-        returns (bytes32 messageHash)
-    {
+    function toExogenousMultichainClaimMessageHash(
+        uint256 claim,
+        uint256 additionalOffset,
+        bytes32 segmentTypehash,
+        bytes32 multichainCompactTypehash,
+        uint256 idsAndAmountsHash
+    ) internal view returns (bytes32 messageHash) {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -529,7 +547,7 @@ library HashLib {
 
             // Iterate over the additional chains array and store each segment hash in memory.
             for { let i := 0 } lt(i, additionalChainsLength) { i := add(i, 0x20) } {
-                mstore(add(m, i), calldataload(add(additionalChainsData, add(i, extraOffset))))
+                mstore(add(add(m, i), extraOffset), calldataload(add(additionalChainsData, i)))
                 // If current index matches chain index, store derived hash and increment offset.
                 if eq(i, chainIndex) {
                     extraOffset := 0x20
@@ -552,61 +570,17 @@ library HashLib {
     }
 
     /**
-     * @notice Internal view function for deriving the EIP-712 message hash for
-     * a simple multichain claim.
-     * @param claim             Pointer to the claim location in calldata.
-     * @param idsAndAmountsHash A hash of the ids and amounts (formatted as a uint256).
-     * @return messageHash      The EIP-712 compliant message hash.
-     */
-    function toSimpleMultichainClaimMessageHash(uint256 claim, uint256 idsAndAmountsHash) internal view returns (bytes32 messageHash) {
-        // Derive the message hash from the claim and idsAndAmounts hash.
-        return claim.toMultichainClaimMessageHash(uint256(0).asStubborn(), SEGMENT_TYPEHASH, MULTICHAIN_COMPACT_TYPEHASH, idsAndAmountsHash);
-    }
-
-    /**
-     * @notice Internal view function for deriving the EIP-712 message hash for
-     * a qualified multichain claim.
-     * @param claim             Pointer to the claim location in calldata.
-     * @param idsAndAmountsHash A hash of the ids and amounts (formatted as a uint256).
-     * @return messageHash      The EIP-712 compliant message hash.
-     */
-    function toQualifiedMultichainClaimMessageHash(uint256 claim, uint256 idsAndAmountsHash) internal view returns (bytes32 messageHash) {
-        // Derive the message hash from the claim and idsAndAmounts hash.
-        return claim.toMultichainClaimMessageHash(uint256(0x40).asStubborn(), SEGMENT_TYPEHASH, MULTICHAIN_COMPACT_TYPEHASH, idsAndAmountsHash);
-    }
-
-    /**
-     * @notice Internal view function for deriving the EIP-712 message hash for
-     * a simple exogenous multichain claim.
-     * @param claim             Pointer to the claim location in calldata.
-     * @param idsAndAmountsHash A hash of the ids and amounts.
-     * @return messageHash      The EIP-712 compliant message hash.
-     */
-    function toSimpleExogenousMultichainClaimMessageHash(uint256 claim, uint256 idsAndAmountsHash) internal view returns (bytes32 messageHash) {
-        // Derive the message hash from the claim and idsAndAmounts hash.
-        return claim.toExogenousMultichainClaimMessageHash(uint256(0).asStubborn(), SEGMENT_TYPEHASH, MULTICHAIN_COMPACT_TYPEHASH, idsAndAmountsHash);
-    }
-
-    /**
-     * @notice Internal view function for deriving the EIP-712 message hash for
-     * a qualified exogenous multichain claim.
-     * @param claim             Pointer to the claim location in calldata.
-     * @param idsAndAmountsHash A hash of the ids and amounts.
-     * @return messageHash      The EIP-712 compliant message hash.
-     */
-    function toExogenousQualifiedMultichainClaimMessageHash(uint256 claim, uint256 idsAndAmountsHash) internal view returns (bytes32 messageHash) {
-        // Derive the message hash from the claim and idsAndAmounts hash.
-        return claim.toExogenousMultichainClaimMessageHash(uint256(0x40).asStubborn(), SEGMENT_TYPEHASH, MULTICHAIN_COMPACT_TYPEHASH, idsAndAmountsHash);
-    }
-
-    /**
      * @notice Internal pure function for deriving the EIP-712 typehashes for
      * multichain claims.
      * @param claim                      Pointer to the claim location in calldata.
      * @return segmentTypehash           The segment typehash.
      * @return multichainCompactTypehash The multichain compact typehash.
      */
-    function toMultichainTypehashes(uint256 claim) internal pure returns (bytes32 segmentTypehash, bytes32 multichainCompactTypehash) {
+    function toMultichainTypehashes(uint256 claim)
+        internal
+        pure
+        returns (bytes32 segmentTypehash, bytes32 multichainCompactTypehash)
+    {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             let m := mload(0x40)
@@ -633,43 +607,16 @@ library HashLib {
 
     /**
      * @notice Internal pure function for deriving the EIP-712 message hash for
-     * a qualification.
-     * @param claim                     Pointer to the claim location in calldata.
-     * @param messageHash               A bytes32 representing the message hash.
-     * @param witnessOffset             Additional offset from claim pointer to witness from most compact case.
-     * @return qualificationMessageHash The EIP-712 compliant message hash.
-     */
-    function toQualificationMessageHash(uint256 claim, bytes32 messageHash, uint256 witnessOffset) internal pure returns (bytes32 qualificationMessageHash) {
-        assembly ("memory-safe") {
-            // Retrieve the free memory pointer; memory will be left dirtied.
-            let m := mload(0x40)
-
-            // Derive the pointer to the qualification payload and retrieve the length.
-            let qualificationPayloadPtr := add(claim, calldataload(add(claim, add(0xc0, witnessOffset))))
-            let qualificationPayloadLength := calldataload(qualificationPayloadPtr)
-
-            // Prepare first qualification message data component: qualification typehash.
-            mstore(m, calldataload(add(claim, add(0xa0, witnessOffset)))) // qualificationTypehash
-
-            // Prepare second qualification message data component: message hash.
-            mstore(add(m, 0x20), messageHash)
-
-            // Copy remaining qualification payload from calldata to memory.
-            calldatacopy(add(m, 0x40), add(0x20, qualificationPayloadPtr), qualificationPayloadLength)
-
-            // Derive the qualification message hash from the prepared data.
-            qualificationMessageHash := keccak256(m, add(0x40, qualificationPayloadLength))
-        }
-    }
-
-    /**
-     * @notice Internal pure function for deriving the EIP-712 message hash for
      * a single id and amount.
      * @param claim              Pointer to the claim location in calldata.
      * @param additionalOffset   Additional offset from claim pointer to ID from most compact case.
      * @return idsAndAmountsHash The hash of the id and amount.
      */
-    function toSingleIdAndAmountHash(uint256 claim, uint256 additionalOffset) internal pure returns (uint256 idsAndAmountsHash) {
+    function toSingleIdAndAmountHash(uint256 claim, uint256 additionalOffset)
+        internal
+        pure
+        returns (uint256 idsAndAmountsHash)
+    {
         assembly ("memory-safe") {
             // Derive the pointer to the claim with additional offset.
             let claimWithAdditionalOffset := add(claim, additionalOffset)
@@ -684,37 +631,31 @@ library HashLib {
     }
 
     /**
-     * @notice Internal pure function for deriving the hash of the ids and amounts.
-     * @param claims             An array of BatchClaimComponent structs.
+     * @notice Internal pure function for deriving the hash of ids and amounts provided.
+     * @param idsAndAmounts      An array of ids and amounts.
      * @return idsAndAmountsHash The hash of the ids and amounts.
+     * @dev This function expects that the calldata of idsAndAmounts will have bounds
+     * checked elsewhere; using it without this check occurring elsewhere can result in
+     * erroneous hash values.
      */
-    function toIdsAndAmountsHash(BatchClaimComponent[] calldata claims) internal pure returns (uint256 idsAndAmountsHash) {
-        // Retrieve the total number of ids in the claims array.
-        uint256 totalIds = claims.length;
-
-        // Prepare a memory region for storing the ids and amounts.
-        bytes memory idsAndAmounts = new bytes(totalIds * 0x40);
-
-        unchecked {
-            // Iterate over the claims array.
-            for (uint256 i = 0; i < totalIds; ++i) {
-                // Navigate to the current claim component in calldata.
-                BatchClaimComponent calldata claimComponent = claims[i];
-
-                assembly ("memory-safe") {
-                    // Derive the offset to the current position in the memory region.
-                    let extraOffset := add(add(idsAndAmounts, 0x20), mul(i, 0x40))
-
-                    // Retrieve and store the id and amount at the current position.
-                    mstore(extraOffset, calldataload(claimComponent))
-                    mstore(add(extraOffset, 0x20), calldataload(add(claimComponent, 0x20)))
-                }
-            }
-        }
-
+    function toIdsAndAmountsHash(uint256[2][] calldata idsAndAmounts)
+        internal
+        pure
+        returns (bytes32 idsAndAmountsHash)
+    {
         assembly ("memory-safe") {
-            // Derive the hash of the ids and amounts from the prepared data.
-            idsAndAmountsHash := keccak256(add(idsAndAmounts, 0x20), mload(idsAndAmounts))
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let ptr := mload(0x40)
+
+            // Get the total length of the calldata slice.
+            // Each element of the array consists of 2 words.
+            let len := mul(idsAndAmounts.length, 0x40)
+
+            // Copy calldata into memory at the free memory pointer.
+            calldatacopy(ptr, idsAndAmounts.offset, len)
+
+            // Compute the hash of the calldata that has been copied into memory.
+            idsAndAmountsHash := keccak256(ptr, len)
         }
     }
 
@@ -723,7 +664,11 @@ library HashLib {
      * @param claims             An array of SplitBatchClaimComponent structs.
      * @return idsAndAmountsHash The hash of the ids and amounts.
      */
-    function toSplitIdsAndAmountsHash(SplitBatchClaimComponent[] calldata claims) internal pure returns (uint256 idsAndAmountsHash) {
+    function toSplitIdsAndAmountsHash(SplitBatchClaimComponent[] calldata claims)
+        internal
+        pure
+        returns (uint256 idsAndAmountsHash)
+    {
         // Retrieve the total number of ids in the claims array.
         uint256 totalIds = claims.length;
 
@@ -778,6 +723,85 @@ library HashLib {
 
             // Restore the free memory pointer.
             mstore(0x40, m)
+        }
+    }
+
+    //// Registration Hashes ////
+
+    /**
+     * @notice Internal pure function for retrieving an EIP-712 claim hash.
+     * @param sponsor         The account sponsoring the claimed compact.
+     * @param tokenId         Identifier for the associated token & lock.
+     * @param amount         Claim's associated number of tokens.
+     * @param arbiter        Account verifying and initiating the settlement of the claim.
+     * @param nonce         Allocator replay protection nonce.
+     * @param expires         Timestamp when the claim expires.
+     * @param typehash         Typehash of the entire compact. Including the subtypes.
+     * @param witness         EIP712 structured hash of witness.
+     * @return messageHash The corresponding EIP-712 messagehash.
+     */
+    function toFlatMessageHashWithWitness(
+        address sponsor,
+        uint256 tokenId,
+        uint256 amount,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) internal pure returns (bytes32 messageHash) {
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let m := mload(0x40)
+
+            mstore(m, typehash)
+            mstore(add(m, 0x20), arbiter)
+            mstore(add(m, 0x40), sponsor)
+            mstore(add(m, 0x60), nonce)
+            mstore(add(m, 0x80), expires)
+            mstore(add(m, 0xa0), tokenId)
+            mstore(add(m, 0xc0), amount)
+            mstore(add(m, 0xe0), witness)
+            // Derive the message hash from the prepared data.
+            messageHash := keccak256(m, 0x100)
+        }
+    }
+
+    /**
+     * @notice Internal pure function for retrieving an EIP-712 claim hash.
+     * @param sponsor       The account sponsoring the claimed compact.
+     * @param idsAndAmounts An array with IDs and aggregate transfer amounts.
+     * @param arbiter       Account verifying and initiating the settlement of the claim.
+     * @param nonce         Allocator replay protection nonce.
+     * @param expires       Timestamp when the claim expires.
+     * @param typehash      Typehash of the entire compact. Including the subtypes.
+     * @param witness       EIP712 structured hash of witness.
+     * @return messageHash  The corresponding EIP-712 messagehash.
+     */
+    function toFlatBatchClaimWithWitnessMessageHash(
+        address sponsor,
+        uint256[2][] calldata idsAndAmounts,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) internal pure returns (bytes32 messageHash) {
+        bytes32 idsAndAmountsHash = idsAndAmounts.toIdsAndAmountsHash();
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let m := mload(0x40)
+
+            mstore(m, typehash)
+            mstore(add(m, 0x20), arbiter)
+            mstore(add(m, 0x40), sponsor)
+            mstore(add(m, 0x60), nonce)
+            mstore(add(m, 0x80), expires)
+            mstore(add(m, 0xa0), idsAndAmountsHash)
+            mstore(add(m, 0xc0), witness)
+
+            // Derive the message hash from the prepared data.
+            messageHash := keccak256(m, 0xe0)
         }
     }
 }

@@ -7,6 +7,11 @@ pragma solidity ^0.8.27;
  * storage or transient storage directly.
  */
 contract Extsload {
+    /**
+     * @notice External view function for reading a value from transient storage.
+     * @param slot The storage slot to read from.
+     * @return The value stored in the specified transient storage slot.
+     */
     function exttload(bytes32 slot) external view returns (bytes32) {
         assembly ("memory-safe") {
             mstore(0, tload(slot))
@@ -14,6 +19,11 @@ contract Extsload {
         }
     }
 
+    /**
+     * @notice External view function for reading a value from persistent storage.
+     * @param slot The storage slot to read from.
+     * @return The value stored in the specified persistent storage slot.
+     */
     function extsload(bytes32 slot) external view returns (bytes32) {
         assembly ("memory-safe") {
             mstore(0, sload(slot))
@@ -21,6 +31,11 @@ contract Extsload {
         }
     }
 
+    /**
+     * @notice External view function for reading multiple values from persistent storage.
+     * @param slots An array of storage slots to read from.
+     * @return An array of values stored in the specified persistent storage slots.
+     */
     function extsload(bytes32[] calldata slots) external view returns (bytes32[] memory) {
         assembly ("memory-safe") {
             let memptr := mload(0x40)

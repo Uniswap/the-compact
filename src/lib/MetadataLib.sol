@@ -68,7 +68,17 @@ library MetadataLib {
         string memory tokenDecimals = uint256(lock.token.readDecimals()).toString();
 
         string memory name = string.concat("{\"name\": \"Compact ", tokenSymbol, "\",");
-        string memory description = string.concat("\"description\": \"Compact ", tokenName, " (", tokenAddress, ") resource lock with allocator ", allocator, " and reset period of ", resetPeriod, "\",");
+        string memory description = string.concat(
+            "\"description\": \"Compact ",
+            tokenName,
+            " (",
+            tokenAddress,
+            ") resource lock with allocator ",
+            allocator,
+            " and reset period of ",
+            resetPeriod,
+            "\","
+        );
         string memory attributes = string.concat(
             "\"attributes\": [",
             toAttributeString("ID", id.toString(), false),
@@ -120,7 +130,11 @@ library MetadataLib {
         return uint256(token.readDecimals()).toString();
     }
 
-    function toAttributeString(string memory trait, string memory value, bool terminal) internal pure returns (string memory attribute) {
+    function toAttributeString(string memory trait, string memory value, bool terminal)
+        internal
+        pure
+        returns (string memory attribute)
+    {
         return string.concat("{\"trait_type\": \"", trait, "\", \"value\": \"", value, "\"}", terminal ? "" : ",");
     }
 }
