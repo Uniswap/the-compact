@@ -172,7 +172,6 @@ library IdLib {
     /**
      * @notice Internal view function that checks if an allocator can be registered.
      * Returns true if any of the following are true:
-     *  - The caller is the allocator
      *  - The allocator address contains code
      *  - The proof is a valid create2 deployment that derives the allocator address
      *    (e.g. proof must take the form of 0xff ++ factory ++ salt ++ initcode hash)
@@ -181,7 +180,7 @@ library IdLib {
      * @return          Whether the allocator can be registered.
      */
     function canBeRegistered(address allocator, bytes calldata proof) internal view returns (bool) {
-        return (msg.sender == allocator).or(allocator.code.length > 0).or(
+        return (allocator.code.length > 0).or(
             proof.length == 85 && (proof[0] == 0xff).and(allocator == address(uint160(uint256(proof.hashCalldata()))))
         );
     }
