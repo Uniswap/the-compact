@@ -82,7 +82,8 @@ contract DepositViaPermit2Logic is DepositLogic {
         }
 
         // Write the signature and perform the Permit2 call.
-        _writeSignatureAndPerformPermit2Call(m, uint256(0x140).asStubborn(), uint256(0x200).asStubborn(), signature);
+        //
+        _writeSignatureAndPerformPermit2Call(m, uint256(0x140).asStubborn(), uint256(0x1e0).asStubborn(), signature);
 
         // Deposit tokens based on the balance change from the Permit2 call.
         _checkBalanceAndDeposit(token, recipient, id, initialBalance);
@@ -199,7 +200,7 @@ contract DepositViaPermit2Logic is DepositLogic {
             mstore(add(m, 0x80), witness)
 
             // Derive signature offset value.
-            signatureOffsetValue := add(0x220, shl(7, totalTokensLessInitialNative))
+            signatureOffsetValue := add(0x200, shl(7, totalTokensLessInitialNative))
         }
 
         // Write the signature and perform the Permit2 call.
@@ -322,11 +323,9 @@ contract DepositViaPermit2Logic is DepositLogic {
         // Set reentrancy guard.
         _setReentrancyGuard();
 
-        // Get total number of tokens and declare allocator, reset period, & scope variables.
+        // Get total number of tokens and declare lockTag.
         uint256 totalTokens = permitted.length;
-        address allocator;
-        ResetPeriod resetPeriod;
-        Scope scope;
+        bytes12 lockTag;
 
         assembly ("memory-safe") {
             // Get the offset of the permitted calldata struct.
@@ -352,15 +351,13 @@ contract DepositViaPermit2Logic is DepositLogic {
                 revert(0x1c, 0x04)
             }
 
-            // Retrieve allocator, reset period, & scope.
-            // NOTE: these may need to be sanitized if toIdIfRegistered doesn't already handle for it
-            allocator := calldataload(0x84)
-            resetPeriod := calldataload(0xa4)
-            scope := calldataload(0xc4)
+            // Retrieve lockTag
+            // toIdIfRegistered does not sanitize the lockTag. Clear the rightmost 20 bytes.
+            lockTag := shl(160, shr(160, calldataload(0x84)))
         }
 
         // Get the initial resource lock id.
-        uint256 initialId = address(0).toIdIfRegistered(allocator.usingAllocatorId().toLockTag(scope, resetPeriod));
+        uint256 initialId = address(0).toIdIfRegistered(lockTag);
 
         // Allocate ids array.
         ids = new uint256[](totalTokens);
@@ -400,20 +397,17 @@ contract DepositViaPermit2Logic is DepositLogic {
         // Set reentrancy guard.
         _setReentrancyGuard();
 
-        // Declare allocator, reset period, & scope variables.
-        address allocator;
-        ResetPeriod resetPeriod;
-        Scope scope;
+        // Declare lockTag
+        bytes12 lockTag;
 
-        // Retrieve allocator, reset period, & scope.
+        // Retrieve lockTag from calldata.
         assembly ("memory-safe") {
-            allocator := calldataload(0xa4)
-            resetPeriod := calldataload(0xc4)
-            scope := calldataload(0xe4)
+            // toIdIfRegistered does not sanitize the lockTag. Clear the rightmost 20 bytes.
+            lockTag := shl(160, shr(160, calldataload(0xa4)))
         }
 
         // Get the ERC6909 token identifier of the associated resource lock.
-        id = token.excludingNative().toIdIfRegistered(allocator.usingAllocatorId().toLockTag(scope, resetPeriod));
+        id = token.excludingNative().toIdIfRegistered(lockTag);
 
         // Get the initial balance of the token in the contract.
         initialBalance = token.balanceOf(address(this));

@@ -125,9 +125,9 @@ struct EmissaryAssignment {
 // keccak256(bytes("EmissaryAssignment(address emissary,uint256 nonce,uint256 expires)"))
 bytes32 constant EMISSARY_ASSIGNMENT_TYPEHASH = 0x5ca9a66b8bbf0d2316e90dfa3df465f0790b277b25393a3ef4d67e1f50865057;
 
-/// @dev `keccak256(bytes("CompactDeposit(address allocator,uint8 resetPeriod,uint8 scope,address recipient)"))`.
+/// @dev `keccak256(bytes("CompactDeposit(bytes12 lockTag,address recipient)"))`.
 bytes32 constant PERMIT2_DEPOSIT_WITNESS_FRAGMENT_HASH =
-    0xe055493563385cc588fffacbffe2dab023fef807baa449530431169b0eeb5b69;
+    0xaced9f7c53bfda31d043cbef88f9ee23b8171ec904889af3d5d0b9b81914a404;
 
 /// @dev `keccak256(bytes("Activation(uint256 id,Compact compact)Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount)"))`.
 bytes32 constant COMPACT_ACTIVATION_TYPEHASH = 0x2bf981c42c7f423b06fa49ba996d2930887e2f1f53d9a26b8c7423ac1cf83e61;
@@ -230,17 +230,13 @@ uint120 constant TOKEN_PERMISSIONS_TYPESTRING_FRAGMENT_TWO = 0x75696e74323536206
 uint256 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_ONE =
     0x436f6d706163744465706f736974207769746e65737329436f6d706163744465;
 
-// abi.decode(bytes("posit(address allocator,uint8 re"), (bytes32))
+// abi.decode(bytes("posit(bytes12 lockTag,address re"), (bytes32))
 uint256 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_TWO =
-    0x706f736974286164647265737320616c6c6f6361746f722c75696e7438207265;
-
-// abi.decode(bytes("setPeriod,uint8 scope,address re"), (bytes32))
-uint256 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_THREE =
-    0x736574506572696f642c75696e74382073636f70652c61646472657373207265;
+    0x706f7369742862797465733132206c6f636b5461672c61646472657373207265;
 
 // abi.decode(bytes("cipient)TokenPermissions(address"), (bytes32))
-uint256 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR =
+uint256 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_THREE =
     0x63697069656e7429546f6b656e5065726d697373696f6e732861646472657373;
 
-// uint176(abi.decode(bytes(" token,uint256 amount)"), (bytes32))
-uint176 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FIVE = 0x20746f6b656e2c75696e7432353620616d6f756e7429;
+// uint176(abi.decode(bytes(" token,uint256 amount)"), (bytes22)))
+uint176 constant COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR = 0x20746f6b656e2c75696e7432353620616d6f756e7429;

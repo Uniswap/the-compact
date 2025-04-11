@@ -36,8 +36,7 @@ import {
     COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_ONE,
     COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_TWO,
     COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_THREE,
-    COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR,
-    COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FIVE
+    COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR
 } from "../types/EIP712Types.sol";
 
 /**
@@ -359,14 +358,14 @@ library DepositViaPermit2Lib {
             // Prepare the initial fragment of the witness typestring.
             mstore(m, PERMIT2_DEPOSIT_WITNESS_FRAGMENT_HASH)
 
-            // Copy allocator, resetPeriod, scope, & recipient directly from calldata.
+            // Copy lockTag & recipient directly from calldata.
             // NOTE: none of these arguments are sanitized; the assumption is that they have to
             // match the signed values anyway, so *should* be fine not to sanitize them but could
             // optionally check that there are no dirty upper bits on any of them.
-            calldatacopy(add(m, 0x20), calldataOffset, 0x80)
+            calldatacopy(add(m, 0x20), calldataOffset, 0x40)
 
             // Derive the CompactDeposit witness hash from the prepared data.
-            witnessHash := keccak256(m, 0xa0)
+            witnessHash := keccak256(m, 0x60)
         }
     }
 
@@ -378,14 +377,13 @@ library DepositViaPermit2Lib {
     function insertCompactDepositTypestring(uint256 memoryLocation) internal pure {
         assembly ("memory-safe") {
             // Write the length of the typestring.
-            mstore(memoryLocation, 0x96)
+            mstore(memoryLocation, 0x76)
 
             // Write the data for the typestring.
             mstore(add(memoryLocation, 0x20), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_ONE)
             mstore(add(memoryLocation, 0x40), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_TWO)
+            mstore(add(memoryLocation, 0x76), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR)
             mstore(add(memoryLocation, 0x60), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_THREE)
-            mstore(add(memoryLocation, 0x96), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FIVE)
-            mstore(add(memoryLocation, 0x80), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR)
         }
     }
 }

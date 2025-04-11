@@ -279,9 +279,7 @@ interface ITheCompact {
      * @param nonce       The Permit2 nonce for the signature.
      * @param deadline    The timestamp until which the signature is valid.
      * @param depositor   The account signing the permit2 authorization and depositing the tokens.
-     * @param allocator   The address of the allocator mediating the resource lock.
-     * @param resetPeriod The duration after which the resource lock can be reset once a forced withdrawal is initiated.
-     * @param scope       The scope of the resource lock (multichain or single chain).
+     * @param lockTag     The lock tag containing allocator ID, reset period, and scope.
      * @param recipient   The address that will receive the corresponding the ERC6909 tokens.
      * @param signature   The Permit2 signature from the depositor authorizing the deposit.
      * @return id         The ERC6909 token identifier of the associated resource lock.
@@ -292,9 +290,7 @@ interface ITheCompact {
         uint256 nonce,
         uint256 deadline,
         address depositor,
-        address allocator,
-        ResetPeriod resetPeriod,
-        Scope scope,
+        bytes12 lockTag,
         address recipient,
         bytes calldata signature
     ) external returns (uint256 id);
@@ -314,9 +310,7 @@ interface ITheCompact {
      * @param nonce           The Permit2 nonce for the signature.
      * @param deadline        The timestamp until which the signature is valid.
      * @param depositor       The account signing the permit2 authorization and depositing the tokens.
-     * @param allocator       The address of the allocator mediating the resource lock.
-     * @param resetPeriod     The duration after which the resource lock can be reset once a forced withdrawal is initiated.
-     * @param scope           The scope of the resource lock (multichain or single chain).
+     * @param lockTag     The lock tag containing allocator ID, reset period, and scope.
      * @param claimHash       A bytes32 hash derived from the details of the compact.
      * @param compactCategory The category of the compact being registered (Compact, BatchCompact, or MultichainCompact).
      * @param witness         Additional data used in generating the claim hash.
@@ -329,9 +323,7 @@ interface ITheCompact {
         uint256 nonce,
         uint256 deadline,
         address depositor,
-        address allocator,
-        ResetPeriod resetPeriod,
-        Scope scope,
+        bytes12 lockTag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
@@ -353,9 +345,7 @@ interface ITheCompact {
      * @param permitted   Array of token permissions specifying the deposited tokens and amounts.
      * @param nonce       The Permit2 nonce for the signature.
      * @param deadline    The timestamp until which the signature is valid.
-     * @param allocator   The address of the allocator mediating the resource locks.
-     * @param resetPeriod The duration after which the resource locks can be reset once forced withdrawals are initiated.
-     * @param scope       The scope of the resource locks (multichain or single chain).
+     * @param lockTag     The lock tag containing allocator ID, reset period, and scope.
      * @param recipient   The address that will receive the corresponding ERC6909 tokens.
      * @param signature   The Permit2 signature from the depositor authorizing the deposits.
      * @return ids        Array of ERC6909 token identifiers for the associated resource locks.
@@ -365,9 +355,7 @@ interface ITheCompact {
         ISignatureTransfer.TokenPermissions[] calldata permitted,
         uint256 nonce,
         uint256 deadline,
-        address allocator,
-        ResetPeriod resetPeriod,
-        Scope scope,
+        bytes12 lockTag,
         address recipient,
         bytes calldata signature
     ) external payable returns (uint256[] memory ids);
@@ -388,9 +376,7 @@ interface ITheCompact {
      * @param permitted       Array of token permissions specifying the deposited tokens and amounts.
      * @param nonce           The Permit2 nonce for the signature.
      * @param deadline        The timestamp until which the signature is valid.
-     * @param allocator       The address of the allocator mediating the resource locks.
-     * @param resetPeriod     The duration after which the resource locks can be reset once forced withdrawals are initiated.
-     * @param scope           The scope of the resource locks (multichain or single chain).
+     * @param lockTag     The lock tag containing allocator ID, reset period, and scope.
      * @param claimHash       A bytes32 hash derived from the details of the compact.
      * @param compactCategory The category of the compact being registered (Compact, BatchCompact, or MultichainCompact).
      * @param witness         Additional data used in generating the claim hash.
@@ -402,9 +388,7 @@ interface ITheCompact {
         ISignatureTransfer.TokenPermissions[] calldata permitted,
         uint256 nonce,
         uint256 deadline,
-        address allocator,
-        ResetPeriod resetPeriod,
-        Scope scope,
+        bytes12 lockTag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,

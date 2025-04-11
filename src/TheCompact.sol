@@ -144,9 +144,7 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         uint256, // nonce
         uint256, // deadline
         address, // depositor
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12, // lockTag
         address recipient,
         bytes calldata signature
     ) external returns (uint256) {
@@ -159,9 +157,7 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         uint256, // nonce
         uint256, // deadline
         address depositor, // also recipient
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12, // lockTag
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
@@ -175,9 +171,7 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         ISignatureTransfer.TokenPermissions[] calldata permitted,
         uint256, // nonce
         uint256, // deadline
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12, // lockTag
         address recipient,
         bytes calldata signature
     ) external payable returns (uint256[] memory) {
@@ -189,9 +183,7 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         ISignatureTransfer.TokenPermissions[] calldata permitted,
         uint256, // nonce
         uint256, // deadline
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12, // lockTag,
         bytes32 claimHash,
         CompactCategory compactCategory,
         string calldata witness,
