@@ -3,108 +3,168 @@ pragma solidity ^0.8.27;
 
 import { ITheCompact } from "./interfaces/ITheCompact.sol";
 
-import { BatchTransfer, SplitBatchTransfer } from "./types/BatchClaims.sol";
-import { BasicTransfer, SplitTransfer } from "./types/Claims.sol";
+import { SplitBatchTransfer } from "./types/BatchClaims.sol";
+import { SplitTransfer } from "./types/Claims.sol";
 import { CompactCategory } from "./types/CompactCategory.sol";
 import { Lock } from "./types/Lock.sol";
 import { Scope } from "./types/Scope.sol";
 import { ResetPeriod } from "./types/ResetPeriod.sol";
 import { ForcedWithdrawalStatus } from "./types/ForcedWithdrawalStatus.sol";
+import { EmissaryStatus } from "./types/EmissaryStatus.sol";
+import { DepositDetails } from "./types/DepositDetails.sol";
 
 import { TheCompactLogic } from "./lib/TheCompactLogic.sol";
 
 import { ERC6909 } from "solady/tokens/ERC6909.sol";
 import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.sol";
 
+// TODO: refactor these into logic files
+import { EfficiencyLib } from "./lib/EfficiencyLib.sol";
+import { HashLib } from "./lib/HashLib.sol";
+import { ValidityLib } from "./lib/ValidityLib.sol";
+import { IdLib } from "./lib/IdLib.sol";
+import { RegistrationLib } from "./lib/RegistrationLib.sol";
+
 /**
  * @title The Compact
- * @custom:version 0 (early-stage proof-of-concept)
+ * @custom:version 1
  * @author 0age (0age.eth)
  * @notice The Compact is an ownerless ERC6909 contract that facilitates the voluntary
  *         formation and mediation of reusable "resource locks."
  *         This contract has not yet been properly tested, audited, or reviewed.
  */
 contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
-    function deposit(address allocator) external payable returns (uint256) {
-        return _performBasicNativeTokenDeposit(allocator);
+    using ValidityLib for address;
+    using ValidityLib for bytes32;
+    using IdLib for address;
+    using IdLib for uint96;
+    using IdLib for uint256;
+    using RegistrationLib for address;
+    using EfficiencyLib for bool;
+    using EfficiencyLib for uint256;
+
+    function deposit(bytes12 lockTag) external payable returns (uint256) {
+        return _performCustomNativeTokenDeposit(lockTag, msg.sender);
     }
 
-    function depositAndRegister(address allocator, bytes32 claimHash, bytes32 typehash) external payable returns (uint256 id) {
-        id = _performBasicNativeTokenDeposit(allocator);
-
-        _registerWithDefaults(claimHash, typehash);
+    function deposit(bytes12 lockTag, address recipient) external payable returns (uint256) {
+        return _performCustomNativeTokenDeposit(lockTag, recipient);
     }
 
-    function deposit(address token, address allocator, uint256 amount) external returns (uint256) {
-        return _performBasicERC20Deposit(token, allocator, amount);
+    function depositAndRegister(bytes12 lockTag, bytes32 claimHash, bytes32 typehash)
+        external
+        payable
+        returns (uint256 id)
+    {
+        id = _performCustomNativeTokenDeposit(lockTag, msg.sender);
+
+        _register(msg.sender, claimHash, typehash);
     }
 
-    function depositAndRegister(address token, address allocator, uint256 amount, bytes32 claimHash, bytes32 typehash) external returns (uint256 id) {
-        id = _performBasicERC20Deposit(token, allocator, amount);
+    function depositAndRegisterFor(
+        address recipient,
+        bytes12 lockTag,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) external payable returns (uint256 id, bytes32 claimhash) {
+        id = _performCustomNativeTokenDeposit(lockTag, recipient);
 
-        _registerWithDefaults(claimHash, typehash);
+        claimhash = _registerUsingClaimWithWitness(recipient, id, msg.value, arbiter, nonce, expires, typehash, witness);
     }
 
-    function deposit(address allocator, ResetPeriod resetPeriod, Scope scope, address recipient) external payable returns (uint256) {
-        return _performCustomNativeTokenDeposit(allocator, resetPeriod, scope, recipient);
+    function deposit(address token, bytes12 lockTag, uint256 amount) external returns (uint256) {
+        return _performCustomERC20Deposit(token, lockTag, amount, msg.sender);
     }
 
-    function deposit(address token, address allocator, ResetPeriod resetPeriod, Scope scope, uint256 amount, address recipient) external returns (uint256) {
-        return _performCustomERC20Deposit(token, allocator, resetPeriod, scope, amount, recipient);
+    function deposit(address token, bytes12 lockTag, uint256 amount, address recipient) external returns (uint256) {
+        return _performCustomERC20Deposit(token, lockTag, amount, recipient);
+    }
+
+    function depositAndRegister(address token, bytes12 lockTag, uint256 amount, bytes32 claimHash, bytes32 typehash)
+        external
+        returns (uint256 id)
+    {
+        id = _performCustomERC20Deposit(token, lockTag, amount, msg.sender);
+
+        _register(msg.sender, claimHash, typehash);
+    }
+
+    function depositAndRegisterFor(
+        address recipient,
+        address token,
+        bytes12 lockTag,
+        uint256 amount,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) external returns (uint256 id, bytes32 claimhash) {
+        id = _performCustomERC20Deposit(token, lockTag, amount, recipient);
+
+        claimhash = _registerUsingClaimWithWitness(recipient, id, amount, arbiter, nonce, expires, typehash, witness);
     }
 
     function deposit(uint256[2][] calldata idsAndAmounts, address recipient) external payable returns (bool) {
-        _processBatchDeposit(idsAndAmounts, recipient);
+        _processBatchDeposit(idsAndAmounts, recipient, false);
 
         return true;
     }
 
-    function depositAndRegister(uint256[2][] calldata idsAndAmounts, bytes32[2][] calldata claimHashesAndTypehashes, uint256 duration) external payable returns (bool) {
-        _processBatchDeposit(idsAndAmounts, msg.sender);
+    function depositAndRegister(uint256[2][] calldata idsAndAmounts, bytes32[2][] calldata claimHashesAndTypehashes)
+        external
+        payable
+        returns (bool)
+    {
+        _processBatchDeposit(idsAndAmounts, msg.sender, false);
 
-        return _registerBatch(claimHashesAndTypehashes, duration);
+        return _registerBatch(claimHashesAndTypehashes);
+    }
+
+    function depositAndRegisterFor(
+        address recipient,
+        uint256[2][] calldata idsAndAmounts,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness
+    ) external payable returns (bytes32 claimhash) {
+        _processBatchDeposit(idsAndAmounts, recipient, true);
+
+        claimhash =
+            _registerUsingBatchClaimWithWitness(recipient, idsAndAmounts, arbiter, nonce, expires, typehash, witness);
     }
 
     function deposit(
-        address token,
-        uint256, // amount
-        uint256, // nonce
-        uint256, // deadline
+        ISignatureTransfer.PermitTransferFrom calldata permit,
         address, // depositor
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        bytes12, // lockTag
         address recipient,
         bytes calldata signature
     ) external returns (uint256) {
-        return _depositViaPermit2(token, recipient, signature);
+        return _depositViaPermit2(permit.permitted.token, recipient, signature);
     }
 
     function depositAndRegister(
-        address token,
-        uint256, // amount
-        uint256, // nonce
-        uint256, // deadline
+        ISignatureTransfer.PermitTransferFrom calldata permit,
         address depositor, // also recipient
-        address, // allocator
-        ResetPeriod resetPeriod,
-        Scope, //scope
+        bytes12, // lockTag
         bytes32 claimHash,
-        CompactCategory compactCategory,
+        CompactCategory, // compactCategory
         string calldata witness,
         bytes calldata signature
     ) external returns (uint256) {
-        return _depositAndRegisterViaPermit2(token, depositor, resetPeriod, claimHash, compactCategory, witness, signature);
+        return _depositAndRegisterViaPermit2(permit.permitted.token, depositor, claimHash, witness, signature);
     }
 
     function deposit(
         address, // depositor
         ISignatureTransfer.TokenPermissions[] calldata permitted,
-        uint256, // nonce
-        uint256, // deadline
-        address, // allocator
-        ResetPeriod, // resetPeriod
-        Scope, //scope
+        DepositDetails calldata,
         address recipient,
         bytes calldata signature
     ) external payable returns (uint256[] memory) {
@@ -114,49 +174,21 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
     function depositAndRegister(
         address depositor,
         ISignatureTransfer.TokenPermissions[] calldata permitted,
-        uint256, // nonce
-        uint256, // deadline
-        address, // allocator
-        ResetPeriod resetPeriod,
-        Scope, //scope
-        bytes32 claimHash,
-        CompactCategory compactCategory,
+        DepositDetails calldata,
+        bytes32, // claimHash
+        CompactCategory, // compactCategory
         string calldata witness,
         bytes calldata signature
     ) external payable returns (uint256[] memory) {
-        return _depositBatchAndRegisterViaPermit2(depositor, permitted, resetPeriod, claimHash, compactCategory, witness, signature);
-    }
-
-    function allocatedTransfer(BasicTransfer calldata transfer) external returns (bool) {
-        return _processBasicTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(BasicTransfer calldata withdrawal) external returns (bool) {
-        return _processBasicTransfer(withdrawal, _withdraw);
+        return _depositBatchAndRegisterViaPermit2(depositor, permitted, witness, signature);
     }
 
     function allocatedTransfer(SplitTransfer calldata transfer) external returns (bool) {
-        return _processSplitTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(SplitTransfer calldata withdrawal) external returns (bool) {
-        return _processSplitTransfer(withdrawal, _withdraw);
-    }
-
-    function allocatedTransfer(BatchTransfer calldata transfer) external returns (bool) {
-        return _processBatchTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(BatchTransfer calldata withdrawal) external returns (bool) {
-        return _processBatchTransfer(withdrawal, _withdraw);
+        return _processSplitTransfer(transfer);
     }
 
     function allocatedTransfer(SplitBatchTransfer calldata transfer) external returns (bool) {
-        return _processSplitBatchTransfer(transfer, _release);
-    }
-
-    function allocatedWithdrawal(SplitBatchTransfer calldata withdrawal) external returns (bool) {
-        return _processSplitBatchTransfer(withdrawal, _withdraw);
+        return _processSplitBatchTransfer(transfer);
     }
 
     function enableForcedWithdrawal(uint256 id) external returns (uint256) {
@@ -164,25 +196,112 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
     }
 
     function disableForcedWithdrawal(uint256 id) external returns (bool) {
-        return _disableForcedWithdrawal(id);
-    }
+        _disableForcedWithdrawal(id);
 
-    function forcedWithdrawal(uint256 id, address recipient, uint256 amount) external returns (bool) {
-        return _processForcedWithdrawal(id, recipient, amount);
-    }
-
-    function register(bytes32 claimHash, bytes32 typehash, uint256 duration) external returns (bool) {
-        _register(msg.sender, claimHash, typehash, duration);
         return true;
     }
 
-    function getRegistrationStatus(address sponsor, bytes32 claimHash, bytes32 typehash) external view returns (bool isActive, uint256 expires) {
-        expires = _getRegistrationStatus(sponsor, claimHash, typehash);
-        isActive = expires > block.timestamp;
+    function forcedWithdrawal(uint256 id, address recipient, uint256 amount) external returns (bool) {
+        _processForcedWithdrawal(id, recipient, amount);
+
+        return true;
     }
 
-    function register(bytes32[2][] calldata claimHashesAndTypehashes, uint256 duration) external returns (bool) {
-        return _registerBatch(claimHashesAndTypehashes, duration);
+    function register(bytes32 claimHash, bytes32 typehash) external returns (bool) {
+        _register(msg.sender, claimHash, typehash);
+
+        return true;
+    }
+
+    function register(bytes32[2][] calldata claimHashesAndTypehashes) external returns (bool) {
+        return _registerBatch(claimHashesAndTypehashes);
+    }
+
+    function registerFor(
+        address sponsor,
+        address token,
+        bytes12 lockTag,
+        uint256 amount,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness,
+        bytes calldata sponsorSignature
+    ) external returns (uint256 id, bytes32 claimHash) {
+        // Derive resource lock ID using provided token, parameters, and allocator.
+        id = token.excludingNative().toIdIfRegistered(lockTag);
+
+        claimHash =
+            HashLib.toFlatMessageHashWithWitness(sponsor, id, amount, arbiter, nonce, expires, typehash, witness);
+
+        {
+            // Initialize idsAndAmounts array.
+            uint256[2][] memory idsAndAmounts = new uint256[2][](1);
+            idsAndAmounts[0] = [id, amount];
+
+            // TODO: support registering exogenous domain separators by passing notarized chainId?
+            claimHash.hasValidSponsor(sponsor, sponsorSignature, _domainSeparator(), idsAndAmounts);
+        }
+
+        sponsor.registerCompact(claimHash, typehash);
+    }
+
+    function registerFor(
+        address sponsor,
+        uint256[2][] calldata idsAndAmounts,
+        address arbiter,
+        uint256 nonce,
+        uint256 expires,
+        bytes32 typehash,
+        bytes32 witness,
+        bytes calldata sponsorSignature
+    ) external returns (bytes32 claimHash) {
+        _enforceConsistentAllocators(idsAndAmounts);
+
+        claimHash = HashLib.toFlatBatchClaimWithWitnessMessageHash(
+            sponsor, idsAndAmounts, arbiter, nonce, expires, typehash, witness
+        );
+
+        // TOOD: support registering exogenous domain separators by passing notarized chainId
+        claimHash.hasValidSponsor(sponsor, sponsorSignature, _domainSeparator(), idsAndAmounts);
+
+        sponsor.registerCompact(claimHash, typehash);
+    }
+
+    function _enforceConsistentAllocators(uint256[2][] calldata idsAndAmounts) internal view {
+        // Retrieve the total number of IDs and amounts in the batch.
+        uint256 totalIds = idsAndAmounts.length;
+
+        if (totalIds == 0) {
+            revert InconsistentAllocators();
+        }
+
+        // Derive current allocator ID from first resource lock ID.
+        uint96 initialAllocatorId = idsAndAmounts[0][0].toRegisteredAllocatorId();
+
+        // Declare error buffer for tracking allocator ID consistency.
+        uint256 errorBuffer;
+
+        // Iterate over remaining IDs.
+        unchecked {
+            for (uint256 i = 1; i < totalIds; ++i) {
+                // Determine if new allocator ID differs from current allocator ID.
+                errorBuffer |= (idsAndAmounts[i][0].toAllocatorId() != initialAllocatorId).asUint256();
+            }
+        }
+
+        if (errorBuffer.asBool()) {
+            revert InconsistentAllocators();
+        }
+    }
+
+    function assignEmissary(bytes12 lockTag, address emissary) external returns (bool) {
+        return _assignEmissary(lockTag, emissary);
+    }
+
+    function scheduleEmissaryAssignment(bytes12 lockTag) external returns (uint256 emissaryAssignmentAvailableAt) {
+        return _scheduleEmissaryAssignment(lockTag);
     }
 
     function consume(uint256[] calldata nonces) external returns (bool) {
@@ -193,11 +312,32 @@ contract TheCompact is ITheCompact, ERC6909, TheCompactLogic {
         return _registerAllocator(allocator, proof);
     }
 
-    function getForcedWithdrawalStatus(address account, uint256 id) external view returns (ForcedWithdrawalStatus, uint256) {
+    function getForcedWithdrawalStatus(address account, uint256 id)
+        external
+        view
+        returns (ForcedWithdrawalStatus, uint256)
+    {
         return _getForcedWithdrawalStatus(account, id);
     }
 
-    function getLockDetails(uint256 id) external view returns (address, address, ResetPeriod, Scope) {
+    function getRegistrationStatus(address sponsor, bytes32 claimHash, bytes32 typehash)
+        external
+        view
+        returns (bool isActive, uint256 registrationTimestamp)
+    {
+        registrationTimestamp = _getRegistrationStatus(sponsor, claimHash, typehash);
+        isActive = registrationTimestamp != 0;
+    }
+
+    function getEmissaryStatus(address sponsor, bytes12 lockTag)
+        external
+        view
+        returns (EmissaryStatus status, uint256 emissaryAssignmentAvailableAt, address currentEmissary)
+    {
+        return _getEmissaryStatus(sponsor, lockTag);
+    }
+
+    function getLockDetails(uint256 id) external view returns (address, address, ResetPeriod, Scope, bytes12) {
         return _getLockDetails(id);
     }
 

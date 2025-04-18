@@ -59,28 +59,45 @@ library MetadataLib {
     }
 
     function toURI(Lock memory lock, uint256 id) internal view returns (string memory uri) {
-        string memory tokenAddress = lock.token.isNullAddress() ? "Native Token" : lock.token.toHexStringChecksummed();
-        string memory allocator = lock.allocator.toHexStringChecksummed();
-        string memory resetPeriod = lock.resetPeriod.toString();
-        string memory scope = lock.scope.toString();
-        string memory tokenName = lock.token.readNameWithDefaultValue();
-        string memory tokenSymbol = lock.token.readSymbolWithDefaultValue();
-        string memory tokenDecimals = uint256(lock.token.readDecimals()).toString();
+        string memory attributes;
+        string memory description;
+        string memory name;
+        {
+            string memory tokenAddress =
+                lock.token.isNullAddress() ? "Native Token" : lock.token.toHexStringChecksummed();
+            string memory tokenSymbol = lock.token.readSymbolWithDefaultValue();
+            string memory allocator = lock.allocator.toHexStringChecksummed();
+            string memory resetPeriod = lock.resetPeriod.toString();
+            string memory scope = lock.scope.toString();
+            string memory tokenName = lock.token.readNameWithDefaultValue();
+            string memory tokenDecimals = uint256(lock.token.readDecimals()).toString();
+            attributes = string.concat(
+                "\"attributes\": [",
+                toAttributeString("ID", id.toString(), false),
+                toAttributeString("Token Address", tokenAddress, false),
+                toAttributeString("Token Name", tokenName, false),
+                toAttributeString("Token Symbol", tokenSymbol, false),
+                toAttributeString("Token Decimals", tokenDecimals, false),
+                toAttributeString("Allocator", allocator, false),
+                toAttributeString("Scope", scope, false),
+                toAttributeString("Reset Period", resetPeriod, true),
+                "]}"
+            );
 
-        string memory name = string.concat("{\"name\": \"Compact ", tokenSymbol, "\",");
-        string memory description = string.concat("\"description\": \"Compact ", tokenName, " (", tokenAddress, ") resource lock with allocator ", allocator, " and reset period of ", resetPeriod, "\",");
-        string memory attributes = string.concat(
-            "\"attributes\": [",
-            toAttributeString("ID", id.toString(), false),
-            toAttributeString("Token Address", tokenAddress, false),
-            toAttributeString("Token Name", tokenName, false),
-            toAttributeString("Token Symbol", tokenSymbol, false),
-            toAttributeString("Token Decimals", tokenDecimals, false),
-            toAttributeString("Allocator", allocator, false),
-            toAttributeString("Scope", scope, false),
-            toAttributeString("Reset Period", resetPeriod, true),
-            "]}"
-        );
+            description = string.concat(
+                "\"description\": \"Compact ",
+                tokenName,
+                " (",
+                tokenAddress,
+                ") resource lock with allocator ",
+                allocator,
+                " and reset period of ",
+                resetPeriod,
+                "\","
+            );
+
+            name = string.concat("{\"name\": \"Compact ", tokenSymbol, "\",");
+        }
 
         // Note: this just returns a default image; replace with a dynamic image based on attributes
         string memory image =
@@ -120,7 +137,11 @@ library MetadataLib {
         return uint256(token.readDecimals()).toString();
     }
 
-    function toAttributeString(string memory trait, string memory value, bool terminal) internal pure returns (string memory attribute) {
+    function toAttributeString(string memory trait, string memory value, bool terminal)
+        internal
+        pure
+        returns (string memory attribute)
+    {
         return string.concat("{\"trait_type\": \"", trait, "\", \"value\": \"", value, "\"}", terminal ? "" : ",");
     }
 }

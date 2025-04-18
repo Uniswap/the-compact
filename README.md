@@ -5,6 +5,8 @@
 
 > :warning: This is an early-stage contract under active development; it has not yet been properly tested, reviewed, or audited.
 
+> NOTE: this README is based on Version 0 of The Compact; it still needs to be updated for Version 1, which is currently under active development.
+
 ## Summary
 The Compact is an ownerless ERC6909 contract that facilitates the voluntary formation (and, if necessary, eventual dissolution) of reusable resource locks.
 
@@ -35,8 +37,11 @@ $ git clone git@github.com:Uniswap/the-compact.git && cd the-compact
 # install dependencies & libraries
 $ forge install
 
-# run basic tests
+# run basic tests & gas snapshots
 $ forge test
+
+# run coverage & generate report
+$ forge coverage --report lcov
 ```
 
 ## Usage
@@ -150,14 +155,14 @@ struct BatchCompact {
 
 // A multichain compact can declare tokens and amounts to allocate from multiple chains,
 // each designated by their chainId. Any allocated tokens on an exogenous domain (e.g. all
-// but the first segment) must designate the Multichain scope. Each segment may designate
+// but the first element) must designate the Multichain scope. Each element may designate
 // a unique arbiter for the chain in question. Note that the witness data is distinct for
-// each segment, but all segments must share the same EIP-712 witness typestring.
-struct Segment {
+// each element, but all elements must share the same EIP-712 "Mandate" witness typestring.
+struct Element {
     address arbiter; // The account tasked with verifying and submitting the claim.
     uint256 chainId; // The chainId where the tokens are located.
     uint256[2][] idsAndAmounts; // The allocated token IDs and amounts.
-    // Optional witness may follow.
+    // Mandate witness will follow.
 }
 
 // Message signed by the sponsor that specifies the conditions under which a set of
@@ -168,7 +173,7 @@ struct MultichainCompact {
     address sponsor; // The account to source the tokens from.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
     uint256 expires; // The time at which the claim expires.
-    Segment[] segments; // Arbiter, chainId, ids & amounts, and witness for each chain.
+    Element[] elements; // Arbiter, chainId, ids & amounts, and witness for each chain.
 }
 ```
 
@@ -197,7 +202,7 @@ In the most straightforward variety of claim, where the arbiter is the sponsor, 
 
  ```solidity
 struct BasicTransfer {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
     uint256 expires; // The time at which the transfer or withdrawal expires.
     uint256 id; // The token ID of the ERC6909 token to transfer or withdraw.
@@ -206,7 +211,7 @@ struct BasicTransfer {
 }
 
 struct SplitTransfer {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
     uint256 expires; // The time at which the transfer or withdrawal expires.
     uint256 id; // The token ID of the ERC6909 token to transfer or withdraw.
@@ -219,7 +224,7 @@ struct SplitComponent {
 }
 
 struct BatchTransfer {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
     uint256 expires; // The time at which the transfer or withdrawal expires.
     TransferComponent[] transfers; // The token IDs and amounts to transfer.
@@ -232,7 +237,7 @@ struct TransferComponent {
 }
 
 struct SplitBatchTransfer {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
     uint256 expires; // The time at which the transfer or withdrawal expires.
     SplitByIdComponent[] transfers; // The recipients and amounts of each transfer for each ID.
@@ -265,7 +270,7 @@ When the arbiter is *not* necessarily the sponsor, and when the sponsor is only 
 
 ```solidity
 struct AllClaimsStartWith {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     bytes sponsorSignature; // Authorization from the sponsor.
     address sponsor; // The account to source the tokens from.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
@@ -274,7 +279,7 @@ struct AllClaimsStartWith {
 }
 
 struct BasicClaim {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     bytes sponsorSignature; // Authorization from the sponsor.
     address sponsor; // The account to source the tokens from.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
@@ -363,7 +368,7 @@ When the sponsor is utilizing multiple resource locks on a specific chain, they 
 
 ```solidity
 struct BatchClaim {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     bytes sponsorSignature; // Authorization from the sponsor.
     address sponsor; // The account to source the tokens from.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
@@ -470,7 +475,7 @@ There are thirty-two endpoints in this scenario, broken into two groups of sixte
 
 ```solidity
 struct MultichainClaim {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     bytes sponsorSignature; // Authorization from the sponsor.
     address sponsor; // The account to source the tokens from.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.
@@ -659,7 +664,7 @@ Finally, there are thirty-two claim endpoints to cover cases where the sponsor i
 
 ```solidity
 struct BatchMultichainClaim {
-    bytes allocatorSignature; // Authorization from the allocator.
+    bytes allocatorData; // Authorization from the allocator.
     bytes sponsorSignature; // Authorization from the sponsor.
     address sponsor; // The account to source the tokens from.
     uint256 nonce; // A parameter to enforce replay protection, scoped to allocator.

@@ -52,6 +52,18 @@ library EfficiencyLib {
     }
 
     /**
+     * @notice Internal pure function that converts a uint256 to a bytes12. Only
+     * safe when the input is known to have no dirty lower bits.
+     * @param a  The uint256 to convert.
+     * @return b The resulting bytes12 value.
+     */
+    function asBytes12(uint256 a) internal pure returns (bytes12 b) {
+        assembly ("memory-safe") {
+            b := a
+        }
+    }
+
+    /**
      * @notice Internal pure function that sanitizes an address by clearing the
      * upper 96 bits. Used for ensuring consistent address handling.
      * @param accountValue The value to sanitize.
@@ -109,6 +121,17 @@ library EfficiencyLib {
     }
 
     /**
+     * @notice Internal pure function that converts a bytes12 to a uint256.
+     * @param a  The bytes12 to convert.
+     * @return b The resulting uint256.
+     */
+    function asUint256(bytes12 a) internal pure returns (uint256 b) {
+        assembly ("memory-safe") {
+            b := a
+        }
+    }
+
+    /**
      * @notice Internal pure function that converts a Scope enum to a uint256.
      * @param a  The Scope enum to convert.
      * @return b The resulting uint256.
@@ -136,6 +159,19 @@ library EfficiencyLib {
      * @return b The resulting uint256.
      */
     function asUint256(ResetPeriod a) internal pure returns (uint256 b) {
+        assembly ("memory-safe") {
+            b := a
+        }
+    }
+
+    /**
+     * @notice Internal pure function that converts a uint256 to a ResetPeriod enum without
+     * performing any bounds checks. Do not use in cases where the reset period may be
+     * outside the acceptable bounds.
+     * @param a  The uint256 to convert.
+     * @return b The resulting ResetPeriod enum.
+     */
+    function asResetPeriod(uint256 a) internal pure returns (ResetPeriod b) {
         assembly ("memory-safe") {
             b := a
         }

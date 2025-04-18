@@ -5,7 +5,6 @@ import { CompactCategory } from "../types/CompactCategory.sol";
 import {
     COMPACT_TYPEHASH,
     BATCH_COMPACT_TYPEHASH,
-    MULTICHAIN_COMPACT_TYPEHASH,
     PERMIT2_DEPOSIT_WITNESS_FRAGMENT_HASH,
     PERMIT2_DEPOSIT_WITH_ACTIVATION_TYPESTRING_FRAGMENT_ONE,
     PERMIT2_DEPOSIT_WITH_ACTIVATION_TYPESTRING_FRAGMENT_TWO,
@@ -15,29 +14,22 @@ import {
     TOKEN_PERMISSIONS_TYPESTRING_FRAGMENT_TWO,
     COMPACT_ACTIVATION_TYPEHASH,
     BATCH_COMPACT_ACTIVATION_TYPEHASH,
-    MULTICHAIN_COMPACT_ACTIVATION_TYPEHASH,
     COMPACT_BATCH_ACTIVATION_TYPEHASH,
     BATCH_COMPACT_BATCH_ACTIVATION_TYPEHASH,
-    MULTICHAIN_COMPACT_BATCH_ACTIVATION_TYPEHASH,
     PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_ONE,
     PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_TWO,
     PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_THREE,
     PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_FOUR,
+    PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_FIVE,
     PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_ONE,
     PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_TWO,
     PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_THREE,
     PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_FOUR,
-    PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_ONE,
-    PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_TWO,
-    PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_THREE,
-    PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FOUR,
-    PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FIVE,
-    PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_SIX,
+    PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_FIVE,
     COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_ONE,
     COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_TWO,
     COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_THREE,
-    COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR,
-    COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FIVE
+    COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR
 } from "../types/EIP712Types.sol";
 
 /**
@@ -56,6 +48,8 @@ library DepositViaPermit2Lib {
     // Selector for the batch `permit2.permitWitnessTransferFrom` function.
     uint256 private constant _BATCH_PERMIT_WITNESS_TRANSFER_FROM_SELECTOR = 0xfe8ec1a7;
 
+    error InvalidCompactCategory();
+
     /**
      * @notice Internal view function for preparing batch deposit permit2 calldata.
      * Prepares known arguments and offsets in memory and returns pointers to the start
@@ -65,7 +59,10 @@ library DepositViaPermit2Lib {
      * @return m The memory pointer to the start of the prepared calldata.
      * @return typestringMemoryLocation The memory pointer to the start of the typestring.
      */
-    function beginPreparingBatchDepositPermit2Calldata(uint256 totalTokensLessInitialNative, bool firstUnderlyingTokenIsNative) internal view returns (uint256 m, uint256 typestringMemoryLocation) {
+    function beginPreparingBatchDepositPermit2Calldata(
+        uint256 totalTokensLessInitialNative,
+        bool firstUnderlyingTokenIsNative
+    ) internal view returns (uint256 m, uint256 typestringMemoryLocation) {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
             m := mload(0x40)
@@ -128,22 +125,26 @@ library DepositViaPermit2Lib {
      * @notice Internal pure function for deriving typehashes and simultaneously
      * preparing the witness typestring component of the call to permit2.
      * @param memoryLocation      The memory pointer to the start of the typestring.
-     * @param category            The CompactCategory of the deposit.
+     * @param category            The CompactCategory of the deposit. Must be Compact or BatchCompact.
      * @param witness             The witness string to insert.
      * @param usingBatch          Whether the deposit involves a batch.
      * @return activationTypehash The derived activation typehash.
      * @return compactTypehash    The derived compact typehash.
      */
-    function writeWitnessAndGetTypehashes(uint256 memoryLocation, CompactCategory category, string calldata witness, bool usingBatch)
-        internal
-        pure
-        returns (bytes32 activationTypehash, bytes32 compactTypehash)
-    {
+    function writeWitnessAndGetTypehashes(
+        uint256 memoryLocation,
+        CompactCategory category,
+        string calldata witness,
+        bool usingBatch
+    ) internal pure returns (bytes32 activationTypehash, bytes32 compactTypehash) {
         assembly ("memory-safe") {
             // Internal assembly function for writing the witness and typehashes.
             // Used to enable leaving the inline assembly scope early when the
             // witness is empty (no-witness case).
-            function writeWitnessAndGetTypehashes(memLocation, c, witnessOffset, witnessLength, usesBatch) -> derivedActivationTypehash, derivedCompactTypehash {
+            function writeWitnessAndGetTypehashes(memLocation, c, witnessOffset, witnessLength, usesBatch) ->
+                derivedActivationTypehash,
+                derivedCompactTypehash
+            {
                 // Derive memory offset for the witness typestring data.
                 let memoryOffset := add(memLocation, 0x20)
 
@@ -181,11 +182,12 @@ library DepositViaPermit2Lib {
                     // Prepare next typestring fragment using Compact witness typestring.
                     mstore(categorySpecificStart, PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_ONE)
                     mstore(add(categorySpecificStart, 0x20), PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_TWO)
-                    mstore(add(categorySpecificStart, 0x50), PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_FOUR)
                     mstore(add(categorySpecificStart, 0x40), PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_THREE)
+                    mstore(add(categorySpecificStart, 0x68), PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_FIVE)
+                    mstore(add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_COMPACT_TYPESTRING_FRAGMENT_FOUR)
 
                     // Set memory pointers for Activation and Category-specific data end.
-                    categorySpecificEnd := add(categorySpecificStart, 0x70)
+                    categorySpecificEnd := add(categorySpecificStart, 0x88)
                     categorySpecificStart := add(categorySpecificStart, 0x10)
                 }
 
@@ -194,27 +196,20 @@ library DepositViaPermit2Lib {
                     // Prepare next typestring fragment using BatchCompact witness typestring.
                     mstore(categorySpecificStart, PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_ONE)
                     mstore(add(categorySpecificStart, 0x20), PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_TWO)
-                    mstore(add(categorySpecificStart, 0x5b), PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_FOUR)
                     mstore(add(categorySpecificStart, 0x40), PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_THREE)
+                    mstore(add(categorySpecificStart, 0x73), PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_FIVE)
+                    mstore(add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_BATCH_COMPACT_TYPESTRING_FRAGMENT_FOUR)
 
                     // Set memory pointers for Activation and Category-specific data end.
-                    categorySpecificEnd := add(categorySpecificStart, 0x7b)
+                    categorySpecificEnd := add(categorySpecificStart, 0x93)
                     categorySpecificStart := add(categorySpecificStart, 0x15)
                 }
 
-                // Handle MultichainCompact case if preparation of compact fragment has not begun.
+                // Revert on MultichainCompact case or above (registration only applies to the current chain).
                 if iszero(categorySpecificEnd) {
-                    // Prepare next typestring fragment using Multichain & Segment witness typestring.
-                    mstore(categorySpecificStart, PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_ONE)
-                    mstore(add(categorySpecificStart, 0x20), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_TWO)
-                    mstore(add(categorySpecificStart, 0x40), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_THREE)
-                    mstore(add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FOUR)
-                    mstore(add(categorySpecificStart, 0x70), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_SIX)
-                    mstore(add(categorySpecificStart, 0x60), PERMIT2_ACTIVATION_MULTICHAIN_COMPACT_TYPESTRING_FRAGMENT_FIVE)
-
-                    // Set memory pointers for Activation and Category-specific data end.
-                    categorySpecificEnd := add(categorySpecificStart, 0x90)
-                    categorySpecificStart := add(categorySpecificStart, 0x1a)
+                    // revert InvalidCompactCategory();
+                    mstore(0, 0xdae3f108)
+                    revert(0x1c, 4)
                 }
 
                 // Handle no-witness cases.
@@ -229,15 +224,11 @@ library DepositViaPermit2Lib {
                     // Derive total length of typestring and store at start of memory.
                     mstore(memLocation, sub(add(categorySpecificEnd, 0x2e), memoryOffset))
 
-                    // Retrieve and cache free memory pointer.
-                    let m := mload(0x40)
-
                     // Derive activation typehash based on the compact category for non-batch cases.
                     if iszero(usesBatch) {
                         // Prepare typehashes for Activation.
                         mstore(0, COMPACT_ACTIVATION_TYPEHASH)
                         mstore(0x20, BATCH_COMPACT_ACTIVATION_TYPEHASH)
-                        mstore(0x40, MULTICHAIN_COMPACT_ACTIVATION_TYPEHASH)
 
                         // Retrieve respective typehash by index.
                         derivedActivationTypehash := mload(indexWords)
@@ -248,7 +239,6 @@ library DepositViaPermit2Lib {
                         // Prepare typehashes for BatchActivation.
                         mstore(0, COMPACT_BATCH_ACTIVATION_TYPEHASH)
                         mstore(0x20, BATCH_COMPACT_BATCH_ACTIVATION_TYPEHASH)
-                        mstore(0x40, MULTICHAIN_COMPACT_BATCH_ACTIVATION_TYPEHASH)
 
                         // Retrieve respective typehash by index.
                         derivedActivationTypehash := mload(indexWords)
@@ -257,13 +247,9 @@ library DepositViaPermit2Lib {
                     // Prepare compact typehashes.
                     mstore(0, COMPACT_TYPEHASH)
                     mstore(0x20, BATCH_COMPACT_TYPEHASH)
-                    mstore(0x40, MULTICHAIN_COMPACT_TYPEHASH)
 
                     // Retrieve respective typehash by index.
                     derivedCompactTypehash := mload(indexWords)
-
-                    // Restore the free memory pointer.
-                    mstore(0x40, m)
 
                     // Leave the inline assembly scope early.
                     leave
@@ -274,21 +260,24 @@ library DepositViaPermit2Lib {
 
                 // Insert tokenPermissions typestring fragment.
                 let tokenPermissionsFragmentStart := add(categorySpecificEnd, witnessLength)
-                mstore(add(tokenPermissionsFragmentStart, 0x0e), TOKEN_PERMISSIONS_TYPESTRING_FRAGMENT_TWO)
-                mstore(sub(tokenPermissionsFragmentStart, 1), TOKEN_PERMISSIONS_TYPESTRING_FRAGMENT_ONE)
+                mstore(add(tokenPermissionsFragmentStart, 0x0f), TOKEN_PERMISSIONS_TYPESTRING_FRAGMENT_TWO)
+                mstore(tokenPermissionsFragmentStart, TOKEN_PERMISSIONS_TYPESTRING_FRAGMENT_ONE)
 
                 // Derive total length of typestring and store at start of memory.
-                mstore(memLocation, sub(add(tokenPermissionsFragmentStart, 0x2e), memoryOffset))
+                mstore(memLocation, sub(add(tokenPermissionsFragmentStart, 0x2f), memoryOffset))
 
                 // Derive activation typehash.
-                derivedActivationTypehash := keccak256(activationStart, sub(tokenPermissionsFragmentStart, activationStart))
+                derivedActivationTypehash :=
+                    keccak256(activationStart, sub(add(tokenPermissionsFragmentStart, 1), activationStart))
 
                 // Derive compact typehash.
-                derivedCompactTypehash := keccak256(categorySpecificStart, sub(tokenPermissionsFragmentStart, categorySpecificStart))
+                derivedCompactTypehash :=
+                    keccak256(categorySpecificStart, sub(add(tokenPermissionsFragmentStart, 1), categorySpecificStart))
             }
 
             // Execute internal assembly function and store derived typehashes.
-            activationTypehash, compactTypehash := writeWitnessAndGetTypehashes(memoryLocation, category, witness.offset, witness.length, usingBatch)
+            activationTypehash, compactTypehash :=
+                writeWitnessAndGetTypehashes(memoryLocation, category, witness.offset, witness.length, usingBatch)
         }
     }
 
@@ -301,7 +290,13 @@ library DepositViaPermit2Lib {
      * @param memoryPointer      The memory pointer to the start of the memory region.
      * @param offset             The offset within the memory region to write the witness hash.
      */
-    function deriveAndWriteWitnessHash(bytes32 activationTypehash, uint256 idOrIdsHash, bytes32 claimHash, uint256 memoryPointer, uint256 offset) internal pure {
+    function deriveAndWriteWitnessHash(
+        bytes32 activationTypehash,
+        uint256 idOrIdsHash,
+        bytes32 claimHash,
+        uint256 memoryPointer,
+        uint256 offset
+    ) internal pure {
         assembly ("memory-safe") {
             // Retrieve and cache free memory pointer.
             let m := mload(0x40)
@@ -332,14 +327,14 @@ library DepositViaPermit2Lib {
             // Prepare the initial fragment of the witness typestring.
             mstore(m, PERMIT2_DEPOSIT_WITNESS_FRAGMENT_HASH)
 
-            // Copy allocator, resetPeriod, scope, & recipient directly from calldata.
+            // Copy lockTag & recipient directly from calldata.
             // NOTE: none of these arguments are sanitized; the assumption is that they have to
             // match the signed values anyway, so *should* be fine not to sanitize them but could
             // optionally check that there are no dirty upper bits on any of them.
-            calldatacopy(add(m, 0x20), calldataOffset, 0x80)
+            calldatacopy(add(m, 0x20), calldataOffset, 0x40)
 
             // Derive the CompactDeposit witness hash from the prepared data.
-            witnessHash := keccak256(m, 0xa0)
+            witnessHash := keccak256(m, 0x60)
         }
     }
 
@@ -351,14 +346,13 @@ library DepositViaPermit2Lib {
     function insertCompactDepositTypestring(uint256 memoryLocation) internal pure {
         assembly ("memory-safe") {
             // Write the length of the typestring.
-            mstore(memoryLocation, 0x96)
+            mstore(memoryLocation, 0x76)
 
             // Write the data for the typestring.
             mstore(add(memoryLocation, 0x20), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_ONE)
             mstore(add(memoryLocation, 0x40), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_TWO)
+            mstore(add(memoryLocation, 0x76), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR)
             mstore(add(memoryLocation, 0x60), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_THREE)
-            mstore(add(memoryLocation, 0x96), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FIVE)
-            mstore(add(memoryLocation, 0x80), COMPACT_DEPOSIT_TYPESTRING_FRAGMENT_FOUR)
         }
     }
 }
