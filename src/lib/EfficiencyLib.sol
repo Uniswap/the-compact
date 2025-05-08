@@ -12,6 +12,22 @@ import { ResetPeriod } from "../types/ResetPeriod.sol";
  */
 library EfficiencyLib {
     /**
+     * @notice Internal view function to convert the provided account address to the caller if that
+     *         address is the null address (0x0).
+     * @dev    Uses bitwise operations to avoid branching, making this function more gas efficient
+     *         than using a traditional if-else statement. The implementation follows the pattern:
+     *         result = xor(a, mul(xor(a, b), condition)) which resolves to either a or b based on
+     *         the condition.
+     * @param  account               The address to check and potentially replace.
+     * @return accountOrCallerIfNull The original address if non-zero, otherwise msg.sender.
+     */
+    function usingCallerIfNull(address account) internal view returns (address accountOrCallerIfNull) {
+        assembly ("memory-safe") {
+            accountOrCallerIfNull := xor(account, mul(xor(account, caller()), iszero(account)))
+        }
+    }
+
+    /**
      * @notice Internal pure function that performs a bitwise AND on two booleans.
      * Avoids Solidity's conditional evaluation of logical AND. Only safe when
      * inputs are known to be exactly 0 or 1 with no dirty bits.
@@ -46,6 +62,18 @@ library EfficiencyLib {
      * @return b The resulting boolean.
      */
     function asBool(uint256 a) internal pure returns (bool b) {
+        assembly ("memory-safe") {
+            b := a
+        }
+    }
+
+    /**
+     * @notice Internal pure function that converts a uint256 to a bytes12. Only
+     * safe when the input is known to have no dirty lower bits.
+     * @param a  The uint256 to convert.
+     * @return b The resulting bytes12 value.
+     */
+    function asBytes12(uint256 a) internal pure returns (bytes12 b) {
         assembly ("memory-safe") {
             b := a
         }
@@ -87,22 +115,22 @@ library EfficiencyLib {
     }
 
     /**
-     * @notice Internal pure function that converts a uint8 to a uint256.
-     * @param a  The uint8 to convert.
+     * @notice Internal pure function that converts a uint96 to a uint256.
+     * @param a  The uint96 to convert.
      * @return b The resulting uint256.
      */
-    function asUint256(uint8 a) internal pure returns (uint256 b) {
+    function asUint256(uint96 a) internal pure returns (uint256 b) {
         assembly ("memory-safe") {
             b := a
         }
     }
 
     /**
-     * @notice Internal pure function that converts a uint96 to a uint256.
-     * @param a  The uint96 to convert.
+     * @notice Internal pure function that converts a bytes12 to a uint256.
+     * @param a  The bytes12 to convert.
      * @return b The resulting uint256.
      */
-    function asUint256(uint96 a) internal pure returns (uint256 b) {
+    function asUint256(bytes12 a) internal pure returns (uint256 b) {
         assembly ("memory-safe") {
             b := a
         }
@@ -136,6 +164,19 @@ library EfficiencyLib {
      * @return b The resulting uint256.
      */
     function asUint256(ResetPeriod a) internal pure returns (uint256 b) {
+        assembly ("memory-safe") {
+            b := a
+        }
+    }
+
+    /**
+     * @notice Internal pure function that converts a uint256 to a ResetPeriod enum without
+     * performing any bounds checks. Do not use in cases where the reset period may be
+     * outside the acceptable bounds.
+     * @param a  The uint256 to convert.
+     * @return b The resulting ResetPeriod enum.
+     */
+    function asResetPeriod(uint256 a) internal pure returns (ResetPeriod b) {
         assembly ("memory-safe") {
             b := a
         }
