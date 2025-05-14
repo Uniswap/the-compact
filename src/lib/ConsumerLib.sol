@@ -10,7 +10,6 @@ pragma solidity ^0.8.27;
 library ConsumerLib {
     // Storage scope identifiers for nonce buckets.
     uint256 private constant _ALLOCATOR_NONCE_SCOPE = 0x03f37b1a;
-    uint256 private constant _SPONSOR_NONCE_SCOPE = 0x8ccd9613;
 
     // Error thrown when attempting to consume an already-consumed nonce.
     error InvalidNonce(address account, uint256 nonce);
@@ -33,26 +32,6 @@ library ConsumerLib {
      */
     function isConsumedByAllocator(uint256 nonceToCheck, address allocator) internal view returns (bool consumed) {
         return _isConsumedBy(nonceToCheck, allocator, _ALLOCATOR_NONCE_SCOPE);
-    }
-
-    /**
-     * @notice Internal function for consuming a nonce in the sponsor's scope.
-     * @param nonce   The nonce to consume.
-     * @param sponsor The address of the sponsor whose scope to consume the nonce in.
-     */
-    function consumeNonceAsSponsor(uint256 nonce, address sponsor) internal {
-        _consumeNonce(nonce, sponsor, _SPONSOR_NONCE_SCOPE);
-    }
-
-    /**
-     * @notice Internal view function for checking if a nonce has been consumed in the
-     * sponsor's scope.
-     * @param nonceToCheck The nonce to check.
-     * @param sponsor      The address of the sponsor whose scope to check.
-     * @return consumed    Whether the nonce has been consumed.
-     */
-    function isConsumedBySponsor(uint256 nonceToCheck, address sponsor) internal view returns (bool consumed) {
-        return _isConsumedBy(nonceToCheck, sponsor, _SPONSOR_NONCE_SCOPE);
     }
 
     /**

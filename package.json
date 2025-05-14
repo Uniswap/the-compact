@@ -1,0 +1,26 @@
+{
+  "name": "the-compact",
+  "version": "1.0.0",
+  "description": "The Compact is an ownerless ERC6909 contract that facilitates the voluntary formation and mediation of reusable resource locks.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Uniswap/the-compact.git"
+  },
+  "license": "MIT",
+  "main": "src/TheCompact.sol",
+  "scripts": {
+    "test": "forge test && hardhat test",
+    "compile": "forge build"
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-foundry": "^1.1.3",
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@nomicfoundation/hardhat-viem": "^2.0.6",
+    "hardhat": "^2.24.0",
+    "viem": "^2.29.2"
+  }
+}

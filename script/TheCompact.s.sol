@@ -5,7 +5,10 @@ import { Script, console } from "forge-std/Script.sol";
 import { TheCompact } from "../src/TheCompact.sol";
 
 interface ImmutableCreate2Factory {
-    function safeCreate2(bytes32 salt, bytes calldata initializationCode) external payable returns (address deploymentAddress);
+    function safeCreate2(bytes32 salt, bytes calldata initializationCode)
+        external
+        payable
+        returns (address deploymentAddress);
 }
 
 contract TheCompactScript is Script {
@@ -26,7 +29,9 @@ contract TheCompactScript is Script {
         address immutableCreate2Factory = address(0x0000000000FFe8B47B3e2130213B802212439497);
         assert(immutableCreate2Factory.code.length > 0);
         // deploy it and check the target address
-        theCompact = TheCompact(ImmutableCreate2Factory(immutableCreate2Factory).safeCreate2(salt, type(TheCompact).creationCode));
+        theCompact = TheCompact(
+            ImmutableCreate2Factory(immutableCreate2Factory).safeCreate2(salt, type(TheCompact).creationCode)
+        );
         assert(address(theCompact) == targetAddress);
 
         // // to just deploy it directly:
