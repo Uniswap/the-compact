@@ -174,8 +174,8 @@ library ValidityLib {
             return;
         }
 
-        // Finally, fallback to emissary using the claim hash.
-        claimHash.verifyWithEmissary(expectedSigner, idsAndAmounts.extractSameLockTag(), signature);
+        // Finally, fallback to emissary using the digest
+        digest.verifyWithEmissary(expectedSigner, idsAndAmounts.extractSameLockTag(), signature);
     }
 
     /**
