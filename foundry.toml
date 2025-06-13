@@ -1,20 +1,18 @@
 [profile.default]
-solc = '0.8.28'
-evm_version='cancun'
+solc = '0.8.30'
+evm_version='prague'
 via_ir = true
-# optimizer_runs = 4_294_967_295
-optimizer_runs = 200
+optimizer_runs = 4_294_967_295
 bytecode_hash = 'none'
 src = "src"
 out = "out"
 libs = ["lib"]
-extra_output_files = ["irOptimized"]
-
-[profile.default.optimizer_details.yulDetails]
-# optimizerSteps = "dhfoD[xarrscLMcCTU]uljmul:fDnTOcmu"
-# TODO: use default with everything but FunctionSpecializer (F)
+# NOTE: uncomment to view yul IR output
+# extra_output_files = ["irOptimized"]
+fuzz.runs = 10_000
+dynamic_test_linking = true
 
 [fmt]
-line_length = 210
+line_length = 120
 tab_width = 4
 bracket_spacing = true
