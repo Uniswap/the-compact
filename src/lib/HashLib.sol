@@ -43,9 +43,7 @@ import { EfficiencyLib } from "./EfficiencyLib.sol";
 library HashLib {
     using EfficiencyLib for bool;
     using EfficiencyLib for uint256;
-    using HashLib for uint256;
     using HashLib for uint256[2][];
-    using HashLib for AllocatedBatchTransfer;
 
     /**
      * @notice Internal view function for deriving the EIP-712 message hash for
@@ -122,7 +120,7 @@ library HashLib {
         uint256 totalLocks = transfers.length;
 
         // Allocate working memory for hashing operations.
-        (uint256 ptr, uint256 hashesPtr) = totalLocks.allocateCommitmentsHashingMemory();
+        (uint256 ptr, uint256 hashesPtr) = _allocateCommitmentsHashingMemory(totalLocks);
 
         // Declare a buffer for arithmetic errors.
         uint256 errorBuffer;
@@ -191,39 +189,7 @@ library HashLib {
         }
 
         // Derive message hash from transfer data and commitments hash.
-        return toBatchTransferMessageHashUsingCommitmentsHash(transfer, commitmentsHash);
-    }
-
-    /**
-     * @notice Internal view function for deriving the EIP-712 message hash for
-     * a batch transfer or withdrawal once a commitments hash is available.
-     * @param transfer        An AllocatedBatchTransfer struct containing the transfer details.
-     * @param commitmentsHash A hash of the commitments array.
-     * @return messageHash    The EIP-712 compliant message hash.
-     */
-    function toBatchTransferMessageHashUsingCommitmentsHash(
-        AllocatedBatchTransfer calldata transfer,
-        uint256 commitmentsHash
-    ) internal view returns (bytes32 messageHash) {
-        assembly ("memory-safe") {
-            // Retrieve the free memory pointer; memory will be left dirtied.
-            let m := mload(0x40)
-
-            // Prepare initial components of message data: typehash, arbiter, & sponsor.
-            mstore(m, BATCH_COMPACT_TYPEHASH)
-            mstore(add(m, 0x20), caller()) // arbiter: msg.sender
-            mstore(add(m, 0x40), caller()) // sponsor: msg.sender
-
-            // Next data segment copied from calldata: nonce & expires.
-            mstore(add(m, 0x60), calldataload(add(transfer, 0x20))) // nonce
-            mstore(add(m, 0x80), calldataload(add(transfer, 0x40))) // expires
-
-            // Prepare final component of message data: commitmentsHash.
-            mstore(add(m, 0xa0), commitmentsHash)
-
-            // Derive the message hash from the prepared data.
-            messageHash := keccak256(m, 0xc0)
-        }
+        return _toBatchTransferMessageHashUsingCommitmentsHash(transfer, commitmentsHash);
     }
 
     /**
@@ -421,7 +387,7 @@ library HashLib {
         uint256 commitmentsHash
     ) internal view returns (bytes32 messageHash) {
         // Derive the element hash for the current element.
-        bytes32 elementHash = claim.toElementHash(elementTypehash, commitmentsHash);
+        bytes32 elementHash = _toElementHash(claim, elementTypehash, commitmentsHash);
 
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
@@ -473,7 +439,7 @@ library HashLib {
         uint256 commitmentsHash
     ) internal view returns (bytes32 messageHash) {
         // Derive the element hash for the current element.
-        bytes32 elementHash = claim.toElementHash(elementTypehash, commitmentsHash);
+        bytes32 elementHash = _toElementHash(claim, elementTypehash, commitmentsHash);
 
         assembly ("memory-safe") {
             // Retrieve the free memory pointer; memory will be left dirtied.
@@ -527,36 +493,6 @@ library HashLib {
 
             // Derive the message hash from the prepared data.
             messageHash := keccak256(m, 0xa0)
-        }
-    }
-
-    /**
-     * @notice Internal view function for deriving the EIP-712 message hash for
-     * a specific element on a multichain claim with or without a witness.
-     * @param claim                     Pointer to the claim location in calldata.
-     * @param elementTypehash           The element typehash.
-     * @param commitmentsHash           The EIP-712 hash of the Lock[] commitments array.
-     * @return elementHash              The EIP-712 compliant element hash.
-     */
-    function toElementHash(uint256 claim, bytes32 elementTypehash, uint256 commitmentsHash)
-        internal
-        view
-        returns (bytes32 elementHash)
-    {
-        assembly ("memory-safe") {
-            // Retrieve the free memory pointer; memory will be left dirtied.
-            let m := mload(0x40)
-
-            // Prepare data: element typehash, arbiter, chainid, commitmentsHash, & witness.
-            mstore(m, elementTypehash)
-            mstore(add(m, 0x20), caller()) // arbiter
-            mstore(add(m, 0x40), chainid())
-            mstore(add(m, 0x60), commitmentsHash)
-            mstore(add(m, 0x80), calldataload(add(claim, 0xa0))) // witness
-
-            // Derive the element hash from the prepared data and write it to memory.
-            // Omit the witness if the default "no-witness" typehash is provided.
-            elementHash := keccak256(m, add(0x80, shl(5, iszero(eq(elementTypehash, ELEMENT_TYPEHASH)))))
         }
     }
 
@@ -702,7 +638,7 @@ library HashLib {
         uint256 totalLocks = claims.length;
 
         // Allocate working memory for hashing operations.
-        (uint256 ptr, uint256 hashesPtr) = totalLocks.allocateCommitmentsHashingMemory();
+        (uint256 ptr, uint256 hashesPtr) = _allocateCommitmentsHashingMemory(totalLocks);
 
         unchecked {
             // Cache lock-specific data start memory pointer location.
@@ -729,26 +665,6 @@ library HashLib {
         assembly ("memory-safe") {
             // Derive the commitments hash using the prepared lock hashes data.
             commitmentsHash := keccak256(hashesPtr, shl(5, totalLocks))
-        }
-    }
-
-    function allocateCommitmentsHashingMemory(uint256 totalLocks)
-        internal
-        pure
-        returns (uint256 ptr, uint256 hashesPtr)
-    {
-        assembly ("memory-safe") {
-            // Retrieve the current free memory pointer.
-            ptr := mload(0x40)
-
-            // Write lock typehash to first word of memory.
-            mstore(ptr, LOCK_TYPEHASH)
-
-            // Allocate four words of memory for deriving hashes.
-            hashesPtr := add(ptr, 0x80)
-
-            // Allocate additional memory based on the total committed locks.
-            mstore(0x40, add(hashesPtr, shl(5, totalLocks)))
         }
     }
 
@@ -839,6 +755,88 @@ library HashLib {
             // Derive the message hash from the prepared data.
             // Do not include witness hash for no-witness case.
             messageHash := keccak256(m, add(0xc0, shl(5, iszero(eq(typehash, BATCH_COMPACT_TYPEHASH)))))
+        }
+    }
+
+    /**
+     * @notice Internal view function for deriving the EIP-712 message hash for
+     * a specific element on a multichain claim with or without a witness.
+     * @param claim                     Pointer to the claim location in calldata.
+     * @param elementTypehash           The element typehash.
+     * @param commitmentsHash           The EIP-712 hash of the Lock[] commitments array.
+     * @return elementHash              The EIP-712 compliant element hash.
+     */
+    function _toElementHash(uint256 claim, bytes32 elementTypehash, uint256 commitmentsHash)
+        private
+        view
+        returns (bytes32 elementHash)
+    {
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let m := mload(0x40)
+
+            // Prepare data: element typehash, arbiter, chainid, commitmentsHash, & witness.
+            mstore(m, elementTypehash)
+            mstore(add(m, 0x20), caller()) // arbiter
+            mstore(add(m, 0x40), chainid())
+            mstore(add(m, 0x60), commitmentsHash)
+            mstore(add(m, 0x80), calldataload(add(claim, 0xa0))) // witness
+
+            // Derive the element hash from the prepared data and write it to memory.
+            // Omit the witness if the default "no-witness" typehash is provided.
+            elementHash := keccak256(m, add(0x80, shl(5, iszero(eq(elementTypehash, ELEMENT_TYPEHASH)))))
+        }
+    }
+
+    /**
+     * @notice Internal view function for deriving the EIP-712 message hash for
+     * a batch transfer or withdrawal once a commitments hash is available.
+     * @param transfer        An AllocatedBatchTransfer struct containing the transfer details.
+     * @param commitmentsHash A hash of the commitments array.
+     * @return messageHash    The EIP-712 compliant message hash.
+     */
+    function _toBatchTransferMessageHashUsingCommitmentsHash(
+        AllocatedBatchTransfer calldata transfer,
+        uint256 commitmentsHash
+    ) private view returns (bytes32 messageHash) {
+        assembly ("memory-safe") {
+            // Retrieve the free memory pointer; memory will be left dirtied.
+            let m := mload(0x40)
+
+            // Prepare initial components of message data: typehash, arbiter, & sponsor.
+            mstore(m, BATCH_COMPACT_TYPEHASH)
+            mstore(add(m, 0x20), caller()) // arbiter: msg.sender
+            mstore(add(m, 0x40), caller()) // sponsor: msg.sender
+
+            // Next data segment copied from calldata: nonce & expires.
+            mstore(add(m, 0x60), calldataload(add(transfer, 0x20))) // nonce
+            mstore(add(m, 0x80), calldataload(add(transfer, 0x40))) // expires
+
+            // Prepare final component of message data: commitmentsHash.
+            mstore(add(m, 0xa0), commitmentsHash)
+
+            // Derive the message hash from the prepared data.
+            messageHash := keccak256(m, 0xc0)
+        }
+    }
+
+    function _allocateCommitmentsHashingMemory(uint256 totalLocks)
+        private
+        pure
+        returns (uint256 ptr, uint256 hashesPtr)
+    {
+        assembly ("memory-safe") {
+            // Retrieve the current free memory pointer.
+            ptr := mload(0x40)
+
+            // Write lock typehash to first word of memory.
+            mstore(ptr, LOCK_TYPEHASH)
+
+            // Allocate four words of memory for deriving hashes.
+            hashesPtr := add(ptr, 0x80)
+
+            // Allocate additional memory based on the total committed locks.
+            mstore(0x40, add(hashesPtr, shl(5, totalLocks)))
         }
     }
 }
