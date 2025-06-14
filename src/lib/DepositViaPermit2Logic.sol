@@ -273,10 +273,8 @@ contract DepositViaPermit2Logic is DepositLogic {
                     uint256 typestringMemoryLocation;
 
                     assembly ("memory-safe") {
-                        idsHash :=
-                            keccak256(
-                                add(ids, 0x20), shl(5, add(totalTokensLessInitialNative, firstUnderlyingTokenIsNative))
-                            )
+                        // Read the length of the `ids` because it was initialized with the `totalTokens` length.
+                        idsHash := keccak256(add(ids, 0x20), shl(5, mload(ids)))
 
                         compactCategory := calldataload(0xc4)
                     }
@@ -367,7 +365,7 @@ contract DepositViaPermit2Logic is DepositLogic {
             let permittedOffset := permitted.offset
 
             // Determine if the first underlying token is native.
-            firstUnderlyingTokenIsNative := iszero(shr(96, shl(96, calldataload(permittedOffset))))
+            firstUnderlyingTokenIsNative := iszero(shl(96, calldataload(permittedOffset)))
 
             // Revert if:
             //  * the array is empty

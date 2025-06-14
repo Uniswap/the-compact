@@ -60,7 +60,7 @@ contract TransferBenchmarker {
             // First: measure transfer cost to an uncreated account — note that the
             // balance check prior to making the transfer will warm the account.
             // Ensure callvalue is exactly 2 wei and the target balance is zero.
-            if or(iszero(eq(callvalue(), 2)), iszero(iszero(balance(target)))) {
+            if or(xor(callvalue(), 2), balance(target)) {
                 mstore(0, 0x9f608b8a)
                 revert(0x1c, 4)
             }
@@ -106,7 +106,7 @@ contract TransferBenchmarker {
             // Also ensure the first balance check cost exceeded the second, and use
             // the balances to ensure the checks are not removed during optimization.
             if or(
-                or(iszero(success1), iszero(success2)),
+                iszero(and(success1, success2)),
                 or(
                     iszero(gt(transferToWarmUncreatedAccountCost, sub(gasCheckpointTwo, gasCheckpointThree))),
                     or(iszero(coldAccountAccessCost), xor(balanceOne, balanceTwo))
@@ -149,35 +149,32 @@ contract TransferBenchmarker {
                 sstore(_ERC20_TOKEN_BENCHMARK_SENTINEL, number())
             }
 
-            // Store function selector for name().
-            mstore(0, 0x06fdde03)
-
             let firstCallCost
             let secondCallCost
 
             {
-                // Get gas before first call.
+                // Get gas before first account access.
                 let firstStart := gas()
 
-                // Perform the first call.
-                let success1 := call(gas(), token, 0, 0x1c, 4, codesize(), 0)
+                // First account access.
+                let balanceOne := balance(token)
 
-                // Get gas before second call.
+                // Get gas before second access.
                 let secondStart := gas()
 
-                // Perform the second call.
-                let success2 := call(gas(), token, 0, 0x1c, 4, codesize(), 0)
+                // Perform the second access.
+                let balanceTwo := balance(token)
 
-                // Get gas after second call.
+                // Get gas after second access.
                 let secondEnd := gas()
 
-                // Derive the benchmark cost of the call.
+                // Derive the benchmark cost of account access.
                 firstCallCost := sub(firstStart, secondStart)
                 secondCallCost := sub(secondStart, secondEnd)
 
-                // Ensure that both calls succeeded and that the cost of the first call
-                // exceeded that of the second, indicating that the account was not warm.
-                if or(or(iszero(success1), iszero(success2)), iszero(gt(firstCallCost, secondCallCost))) {
+                // Ensure that the cost of the first call exceeded that of the second, indicating that the account was not warm.
+                // Use the balances to ensure the checks are not removed during optimization
+                if or(iszero(gt(firstCallCost, secondCallCost)), xor(balanceOne, balanceTwo)) {
                     mstore(0, 0x9f608b8a)
                     revert(0x1c, 4)
                 }

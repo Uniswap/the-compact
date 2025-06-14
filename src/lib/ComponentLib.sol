@@ -290,9 +290,8 @@ library ComponentLib {
                 uint256 amount = component.amount;
 
                 // Track total amount claimed, checking for overflow.
-                uint256 updatedSpentAmount = amount + spentAmount;
-                errorBuffer |= (updatedSpentAmount < spentAmount).asUint256();
-                spentAmount = updatedSpentAmount;
+                spentAmount += amount;
+                errorBuffer |= (spentAmount < amount).asUint256();
 
                 sponsor.performOperation(id, component.claimant, amount);
             }
