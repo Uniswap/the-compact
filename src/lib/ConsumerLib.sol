@@ -95,8 +95,13 @@ library ConsumerLib {
             mstore(0x0c, scope)
             mstore(0x40, nonceToCheck)
 
-            // Retrieve nonce bucket value and determine whether the nonce is set.
-            consumed := and(shl(and(0xff, nonceToCheck), 1), sload(keccak256(0x28, 0x37)))
+            // Load the nonce bucket and check whether the target nonce bit is set.
+            // 1. `sload(keccak256(0x28, 0x37))`      – load the 256-bit bucket.
+            // 2. `and(0xff, nonceToCheck)`           – isolate the least-significant byte (bit index 0-255).
+            // 3. `shl(index, 1)`                     – build a mask (1 << index).
+            // 4. `and(mask, bucket)`                 – leave only the target bit.
+            // 5. `gt(result, 0)`                     – cast to a clean boolean (avoids dirty bits).
+            consumed := gt(and(shl(and(0xff, nonceToCheck), 1), sload(keccak256(0x28, 0x37))), 0)
 
             // Restore the free memory pointer.
             mstore(0x40, freeMemoryPointer)
