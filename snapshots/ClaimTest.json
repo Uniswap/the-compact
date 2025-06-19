@@ -1,0 +1,10 @@
+{
+  "cancelBatchClaimWithWitness": "49386",
+  "cancelClaim": "44160",
+  "claimAndConvert": "99978",
+  "claimAndTokenWithdrawalFailed": "96032",
+  "claimAndWithdraw": "118989",
+  "claimAndWithdrawWithERC1271": "116400",
+  "splitBatchClaimWithWitness": "150450",
+  "splitClaimWithWitness": "94692"
+}

@@ -23,6 +23,10 @@ contract AllocatorLogic {
     using EfficiencyLib for uint256;
     using ValidityLib for address;
 
+    // keccak256(bytes("NonceConsumedDirectly(address,uint256)")).
+    uint256 private constant _NONCE_CONSUMED_DIRECTLY_EVENT_SIGNATURE =
+        0x378325bc73c84116a385ff3c287be7229f0aa047254a780befebba0fc966216e;
+
     /**
      * @notice Internal function for marking allocator nonces as consumed. Once consumed, a nonce
      * cannot be reused to claim resource locks referencing that allocator. Called by the external
@@ -31,23 +35,36 @@ contract AllocatorLogic {
      * @return       Whether all nonces were successfully marked as consumed.
      */
     function _consume(uint256[] calldata nonces) internal returns (bool) {
-        // NOTE: this may not be necessary, consider removing
-        msg.sender.usingAllocatorId().mustHaveARegisteredAllocator();
+        // Ensure that the caller is a registered allocator.
+        msg.sender.toAllocatorId().mustHaveARegisteredAllocator();
 
         unchecked {
+            // Declare an pointer starting at the data offset of the nonces array.
             uint256 i;
-
             assembly ("memory-safe") {
                 i := nonces.offset
             }
 
+            // Determine the terminal pointer.
             uint256 end = i + (nonces.length << 5);
             uint256 nonce;
+
+            // Iterate over each pointer in the array.
             for (; i < end; i += 0x20) {
                 assembly ("memory-safe") {
+                    // Retrieve the respective nonce from calldata.
                     nonce := calldataload(i)
                 }
+
+                // Consume the nonce in the scope of the caller.
                 nonce.consumeNonceAsAllocator(msg.sender);
+
+                // Emit a NonceConsumedDirectly event.
+                assembly ("memory-safe") {
+                    // Emit NonceConsumedDirectly(msg.sender, nonce) event.
+                    mstore(0, nonce)
+                    log2(0, 0x20, _NONCE_CONSUMED_DIRECTLY_EVENT_SIGNATURE, caller())
+                }
             }
         }
 
@@ -63,7 +80,10 @@ contract AllocatorLogic {
      * @return allocatorId A unique identifier assigned to the registered allocator.
      */
     function _registerAllocator(address allocator, bytes calldata proof) internal returns (uint96 allocatorId) {
+        // Sanitize the allocator address out of an abundance of caution.
         allocator = uint256(uint160(allocator)).asSanitizedAddress();
+
+        // Ensure that the allocator in question can be registered.
         if (!allocator.canBeRegistered(proof)) {
             assembly ("memory-safe") {
                 // revert InvalidRegistrationProof(allocator)
@@ -73,6 +93,7 @@ contract AllocatorLogic {
             }
         }
 
+        // Register the allocator.
         allocatorId = allocator.register();
     }
 
@@ -94,11 +115,17 @@ contract AllocatorLogic {
      * @return allocator   The address of the allocator mediating the resource lock.
      * @return resetPeriod The duration after which the underlying tokens can be withdrawn once a forced withdrawal is initiated.
      * @return scope       The scope of the resource lock (multichain or single chain).
+     * @return lockTag     The lock tag containing the allocator ID, the reset period, and the scope.
      */
-    function _getLockDetails(uint256 id) internal view returns (address token, address allocator, ResetPeriod resetPeriod, Scope scope) {
-        token = id.toToken();
+    function _getLockDetails(uint256 id)
+        internal
+        view
+        returns (address token, address allocator, ResetPeriod resetPeriod, Scope scope, bytes12 lockTag)
+    {
+        token = id.toAddress();
         allocator = id.toAllocatorId().toRegisteredAllocator();
         resetPeriod = id.toResetPeriod();
         scope = id.toScope();
+        lockTag = id.toLockTag();
     }
 }

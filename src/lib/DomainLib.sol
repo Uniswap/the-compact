@@ -12,20 +12,31 @@ library DomainLib {
     /// @dev `keccak256(bytes("The Compact"))`.
     bytes32 internal constant _NAME_HASH = 0x5e6f7b4e1ac3d625bac418bc955510b3e054cb6cc23cc27885107f080180b292;
 
-    /// @dev `keccak256("0")`.
-    bytes32 internal constant _VERSION_HASH = 0x044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d;
+    /// @dev `keccak256("1")`.
+    bytes32 internal constant _VERSION_HASH = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
 
-    function toLatest(bytes32 initialDomainSeparator, uint256 initialChainId) internal view returns (bytes32 domainSeparator) {
+    /**
+     * @notice Internal view function that returns the current domain separator, deriving a new one
+     * if the chain ID has changed from the initial chain ID.
+     * @param initialDomainSeparator The domain separator derived at deployment time.
+     * @param initialChainId         The chain ID at the time of deployment.
+     * @return domainSeparator       The current domain separator.
+     */
+    function toLatest(bytes32 initialDomainSeparator, uint256 initialChainId)
+        internal
+        view
+        returns (bytes32 domainSeparator)
+    {
         // Set the initial domain separator as the default domain separator.
         domainSeparator = initialDomainSeparator;
 
         assembly ("memory-safe") {
-            // Rederive the domain separator if the initial chain ID differs from the current one.
+            // Derive domain separator again if initial chain ID differs from current one.
             if xor(chainid(), initialChainId) {
                 // Retrieve the free memory pointer.
                 let m := mload(0x40)
 
-                // Prepare domain data: EIP-712 typehash, name hash, version hash, chain ID, and verifying contract.
+                // Prepare domain data: EIP-712 typehash, name hash, version hash, chain ID, & verifying contract.
                 mstore(m, _DOMAIN_TYPEHASH)
                 mstore(add(m, 0x20), _NAME_HASH)
                 mstore(add(m, 0x40), _VERSION_HASH)
@@ -38,7 +49,17 @@ library DomainLib {
         }
     }
 
-    function toNotarizedDomainSeparator(uint256 notarizedChainId) internal view returns (bytes32 notarizedDomainSeparator) {
+    /**
+     * @notice Internal view function that derives a domain separator for a specific chain ID.
+     * Used for notarizing multichain claims with segments that will be executed on a different chain.
+     * @param notarizedChainId          The chain ID to derive the domain separator for.
+     * @return notarizedDomainSeparator The domain separator for the specified chain ID.
+     */
+    function toNotarizedDomainSeparator(uint256 notarizedChainId)
+        internal
+        view
+        returns (bytes32 notarizedDomainSeparator)
+    {
         assembly ("memory-safe") {
             // Retrieve the free memory pointer.
             let m := mload(0x40)
@@ -55,6 +76,13 @@ library DomainLib {
         }
     }
 
+    /**
+     * @notice Internal pure function that combines a message hash with a domain separator
+     * to create a domain-specific hash according to EIP-712.
+     * @param messageHash     The EIP-712 hash of the message data.
+     * @param domainSeparator The domain separator to combine with the message hash.
+     * @return domainHash     The domain-specific hash.
+     */
     function withDomain(bytes32 messageHash, bytes32 domainSeparator) internal pure returns (bytes32 domainHash) {
         assembly ("memory-safe") {
             // Retrieve and cache the free memory pointer.
