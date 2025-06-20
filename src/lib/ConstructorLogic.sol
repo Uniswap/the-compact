@@ -20,8 +20,8 @@ import { Tstorish } from "./Tstorish.sol";
  */
 contract ConstructorLogic is Tstorish {
     using DomainLib for bytes32;
-    using EfficiencyLib for uint256;
     using DomainLib for uint256;
+    using EfficiencyLib for uint256;
 
     // Address of the Permit2 contract, optionally used for depositing ERC20 tokens.
     address private constant _PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;

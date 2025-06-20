@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import { IdLib } from "./IdLib.sol";
-import { EfficiencyLib } from "./EfficiencyLib.sol";
-
 /**
  * @title AllocatorLib
  * @notice Library contract implementing logic for interacting with allocators, specifically
  * for checking for authorization during claim processing via a low-level call.
  */
 library AllocatorLib {
-    using IdLib for uint256;
-    using EfficiencyLib for bool;
-
     // bytes4(keccak256("authorizeClaim(bytes32,address,address,uint256,uint256,uint256[2][],bytes)")).
     uint32 private constant _AUTHORIZE_CLAIM_SELECTOR = 0x7bb023f7;
     uint256 private constant _AUTHORIZE_CLAIM_IDS_AND_AMOUNTS_CALLDATA_POINTER = 0xe0;

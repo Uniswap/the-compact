@@ -108,7 +108,7 @@ library DepositViaPermit2Lib {
             // Derive start, next, & end locations for iterating through `details` array.
             let starting := add(detailsOffset, 0x20)
             let next := add(detailsOffset, 0x40)
-            let end := tokenChunk // Equivalent to  shl(6, totalTokensLessInitialNative)
+            let end := tokenChunk // Equivalent to shl(6, totalTokensLessInitialNative)
 
             // Iterate through `details` array and copy data from calldata to memory.
             for { let i := 0 } lt(i, end) { i := add(i, 0x40) } {

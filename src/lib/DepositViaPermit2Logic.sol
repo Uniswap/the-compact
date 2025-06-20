@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import { CompactCategory } from "../types/CompactCategory.sol";
-import { ResetPeriod } from "../types/ResetPeriod.sol";
 
 import { DepositLogic } from "./DepositLogic.sol";
 import { DepositViaPermit2Lib } from "./DepositViaPermit2Lib.sol";
@@ -31,10 +30,8 @@ contract DepositViaPermit2Logic is DepositLogic {
     using TransferLib for address;
     using DepositViaPermit2Lib for bytes32;
     using DepositViaPermit2Lib for uint256;
-    using IdLib for uint96;
     using IdLib for uint256;
     using IdLib for address;
-    using IdLib for ResetPeriod;
     using EfficiencyLib for bool;
     using EfficiencyLib for uint256;
     using RegistrationLib for address;

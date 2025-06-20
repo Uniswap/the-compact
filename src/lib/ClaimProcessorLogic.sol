@@ -10,8 +10,6 @@ import { ClaimHashLib } from "./ClaimHashLib.sol";
 import { ClaimProcessorLib } from "./ClaimProcessorLib.sol";
 import { ClaimProcessorFunctionCastLib } from "./ClaimProcessorFunctionCastLib.sol";
 import { DomainLib } from "./DomainLib.sol";
-import { HashLib } from "./HashLib.sol";
-import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { ConstructorLogic } from "./ConstructorLogic.sol";
 
 /**

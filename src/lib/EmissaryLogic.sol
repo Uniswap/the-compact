@@ -27,7 +27,6 @@ import { EmissaryStatus } from "../types/EmissaryStatus.sol";
  * get the current status of an emissary assignment.
  */
 contract EmissaryLogic {
-    using IdLib for address;
     using IdLib for uint96;
     using IdLib for bytes12;
     using EmissaryLib for bytes12;

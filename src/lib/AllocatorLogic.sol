@@ -59,7 +59,6 @@ contract AllocatorLogic {
                 // Consume the nonce in the scope of the caller.
                 nonce.consumeNonceAsAllocator(msg.sender);
 
-                // Emit a NonceConsumedDirectly event.
                 assembly ("memory-safe") {
                     // Emit NonceConsumedDirectly(msg.sender, nonce) event.
                     mstore(0, nonce)
