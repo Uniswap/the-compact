@@ -127,9 +127,9 @@ contract TransferLogicTest is Test {
             allocatorData: bytes("")
         });
 
-        // Process the transfer - should revert with ExpiredCompact
+        // Process the transfer - should revert with Expired
         vm.prank(sponsor);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(ITheCompact.Expired.selector, block.timestamp - 1));
         logic.processTransfer(transfer);
     }
 

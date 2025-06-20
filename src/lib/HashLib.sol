@@ -519,7 +519,7 @@ library HashLib {
      * @notice Internal pure function for deriving the commitments hash of a provided
      * idsAndAmounts array.
      * @param idsAndAmounts      An array of ids and amounts.
-     * @param replacementAmounts An optional array of replacement amounts.
+     * @param replacementAmounts An array of replacement amounts.
      * @return commitmentsHash   The EIP-712 hash of the Lock[] commitments array.
      * @dev This function expects that the calldata of idsAndAmounts will have bounds
      * checked elsewhere; using it without this check occurring elsewhere can result in
@@ -545,7 +545,7 @@ library HashLib {
             let replacementDataStart := add(replacementAmounts, 0x20)
             let lockDataStart := add(ptr, 0x20)
 
-            // Iterate over the replacementAmounts array, splicing in the updated amounts.
+            // Iterate over the idsAndAmounts array, splicing in the replacement amounts.
             for { let i := 0 } lt(i, idsAndAmounts.length) { i := add(i, 1) } {
                 // Retrieve the id from the relevant segment of calldata.
                 let id := calldataload(add(idsAndAmounts.offset, shl(6, i)))
@@ -664,7 +664,7 @@ library HashLib {
      * @param expires            Timestamp when the compact expires.
      * @param typehash           Typehash of the entire compact, including witness subtypes.
      * @param witness            EIP712 structured hash of witness.
-     * @param replacementAmounts An optional array of replacement amounts.
+     * @param replacementAmounts An array of replacement amounts.
      * @return messageHash       The corresponding EIP-712 messagehash.
      */
     function toClaimHashFromBatchDeposit(

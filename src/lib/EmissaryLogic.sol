@@ -78,7 +78,7 @@ contract EmissaryLogic {
      * @custom:throws If the timelock period has not passed or was not initiated, ensuring secure delegation practices
      */
     function _assignEmissary(bytes12 lockTag, address emissary) internal returns (bool) {
-        // Extract allocatorId from locktag and ensure that the allocator is registered.
+        // Extract allocatorId from lockTag and ensure that the allocator is registered.
         address allocator = lockTag.toAllocatorId().toRegisteredAllocator();
 
         // Ensure allocator is not the emissary as it would grant the entity unilateral control.

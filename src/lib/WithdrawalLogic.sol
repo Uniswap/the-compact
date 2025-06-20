@@ -152,7 +152,7 @@ contract WithdrawalLogic is ConstructorLogic {
     function _getCutoffTimeSlot(address account, uint256 id) private pure returns (uint256 cutoffTimeSlotLocation) {
         assembly ("memory-safe") {
             // Pack data for computing storage slot. Note that the upper
-            // 24 bytes of the free memory pointer are dirtied and will
+            // 20 bytes of the free memory pointer are dirtied and will
             // be restored once the storage slot has been derived.
             mstore(0x14, account)
             mstore(0, _FORCED_WITHDRAWAL_ACTIVATIONS_SCOPE)

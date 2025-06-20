@@ -8,7 +8,6 @@ import { ValidityLib } from "./ValidityLib.sol";
 import { TransferLib } from "./TransferLib.sol";
 
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
-import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.sol";
 
 /**
  * @title DirectDepositLogic
