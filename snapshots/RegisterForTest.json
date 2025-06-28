@@ -1,0 +1,11 @@
+{
+  "registerBatchFor": "28965",
+  "registerBatchForNoWitness": "28953",
+  "registerBatchForWithEIP1271": "33295",
+  "registerFor": "28873",
+  "registerForNoWitness": "28861",
+  "registerForWithEIP1271": "33203",
+  "registerMultichainFor": "29230",
+  "registerMultichainForNoWitness": "29230",
+  "registerMultichainForWithEIP1271": "33563"
+}

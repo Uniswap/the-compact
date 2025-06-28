@@ -25,6 +25,15 @@ jobs:
         with:
           version: nightly
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Show Forge version
         run: |
           forge --version
@@ -42,6 +51,23 @@ jobs:
       - name: Run Forge tests
         run: |
           forge test -vvv
-        id: test
+        id: forge-test
         env:
           FORGE_SNAPSHOT_CHECK: true
+
+      - name: Run Hardhat tests
+        run: |
+          npx hardhat test
+        id: hardhat-test
+
+      - name: Run Forge coverage
+        run: |
+          forge coverage --report lcov
+        id: coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov.info
+          fail_ci_if_error: true

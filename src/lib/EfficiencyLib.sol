@@ -12,6 +12,23 @@ import { ResetPeriod } from "../types/ResetPeriod.sol";
  */
 library EfficiencyLib {
     /**
+     * @notice Internal view function to convert the provided account address to the caller if that
+     *         address is the null address (0x0).
+     * @dev    Uses bitwise operations to avoid branching, making this function more gas efficient
+     *         than using a traditional if-else statement. The implementation follows the pattern
+     *         `result = xor(a, mul(xor(a, b), condition))` which resolves to either a or b based
+     *         on the condition; as the condition in this case is contingent on the first argument
+     *         having a value of zero, the nested xor can safely be omitted.
+     * @param  account               The address to check and potentially replace.
+     * @return accountOrCallerIfNull The original address if non-zero, otherwise msg.sender.
+     */
+    function usingCallerIfNull(address account) internal view returns (address accountOrCallerIfNull) {
+        assembly ("memory-safe") {
+            accountOrCallerIfNull := xor(account, mul(caller(), iszero(account)))
+        }
+    }
+
+    /**
      * @notice Internal pure function that performs a bitwise AND on two booleans.
      * Avoids Solidity's conditional evaluation of logical AND. Only safe when
      * inputs are known to be exactly 0 or 1 with no dirty bits.
@@ -36,18 +53,6 @@ library EfficiencyLib {
     function or(bool a, bool b) internal pure returns (bool c) {
         assembly ("memory-safe") {
             c := or(a, b)
-        }
-    }
-
-    /**
-     * @notice Internal pure function that converts a uint256 to a boolean. Only
-     * safe when the input is known to be exactly 0 or 1 with no dirty bits.
-     * @param a  The uint256 to convert.
-     * @return b The resulting boolean.
-     */
-    function asBool(uint256 a) internal pure returns (bool b) {
-        assembly ("memory-safe") {
-            b := a
         }
     }
 
@@ -87,22 +92,22 @@ library EfficiencyLib {
     }
 
     /**
-     * @notice Internal pure function that converts a uint8 to a uint256.
-     * @param a  The uint8 to convert.
+     * @notice Internal pure function that converts a uint96 to a uint256.
+     * @param a  The uint96 to convert.
      * @return b The resulting uint256.
      */
-    function asUint256(uint8 a) internal pure returns (uint256 b) {
+    function asUint256(uint96 a) internal pure returns (uint256 b) {
         assembly ("memory-safe") {
             b := a
         }
     }
 
     /**
-     * @notice Internal pure function that converts a uint96 to a uint256.
-     * @param a  The uint96 to convert.
+     * @notice Internal pure function that converts a bytes12 to a uint256.
+     * @param a  The bytes12 to convert.
      * @return b The resulting uint256.
      */
-    function asUint256(uint96 a) internal pure returns (uint256 b) {
+    function asUint256(bytes12 a) internal pure returns (uint256 b) {
         assembly ("memory-safe") {
             b := a
         }
@@ -149,20 +154,6 @@ library EfficiencyLib {
      * @return b The original value, preventing specialization.
      */
     function asStubborn(uint256 a) internal pure returns (uint256 b) {
-        assembly ("memory-safe") {
-            b := or(iszero(calldatasize()), a)
-        }
-    }
-
-    /**
-     * @notice Internal pure function that prevents the function specializer from
-     * inlining functions that take fixed bytes32 arguments. Since calldatasize()
-     * will always be non-zero when making a standard function call, an OR
-     * against iszero(calldatasize()) will always result in the original value.
-     * @param a  The bytes32 value to make stubborn.
-     * @return b The original value, preventing specialization.
-     */
-    function asStubborn(bytes32 a) internal pure returns (bytes32 b) {
         assembly ("memory-safe") {
             b := or(iszero(calldatasize()), a)
         }
