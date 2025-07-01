@@ -10,7 +10,6 @@ pragma solidity ^0.8.27;
 library ConsumerLib {
     // Storage scope identifiers for nonce buckets.
     uint256 private constant _ALLOCATOR_NONCE_SCOPE = 0x03f37b1a;
-    uint256 private constant _SPONSOR_NONCE_SCOPE = 0x8ccd9613;
 
     // Error thrown when attempting to consume an already-consumed nonce.
     error InvalidNonce(address account, uint256 nonce);
@@ -36,26 +35,6 @@ library ConsumerLib {
     }
 
     /**
-     * @notice Internal function for consuming a nonce in the sponsor's scope.
-     * @param nonce   The nonce to consume.
-     * @param sponsor The address of the sponsor whose scope to consume the nonce in.
-     */
-    function consumeNonceAsSponsor(uint256 nonce, address sponsor) internal {
-        _consumeNonce(nonce, sponsor, _SPONSOR_NONCE_SCOPE);
-    }
-
-    /**
-     * @notice Internal view function for checking if a nonce has been consumed in the
-     * sponsor's scope.
-     * @param nonceToCheck The nonce to check.
-     * @param sponsor      The address of the sponsor whose scope to check.
-     * @return consumed    Whether the nonce has been consumed.
-     */
-    function isConsumedBySponsor(uint256 nonceToCheck, address sponsor) internal view returns (bool consumed) {
-        return _isConsumedBy(nonceToCheck, sponsor, _SPONSOR_NONCE_SCOPE);
-    }
-
-    /**
      * @notice Private function implementing nonce consumption logic. Uses the last byte
      * of the nonce to determine which bit to set in a 256-bit storage bucket unique to
      * the account and scope. Reverts if the nonce has already been consumed.
@@ -73,7 +52,7 @@ library ConsumerLib {
             let freeMemoryPointer := mload(0x40)
 
             // derive the nonce bucket slot:
-            // keccak256(_CONSUMER_NONCE_SCOPE ++ account ++ nonce[0:31])
+            // keccak256(_ALLOCATOR_NONCE_SCOPE ++ account ++ nonce[0:31])
             mstore(0x20, account)
             mstore(0x0c, scope)
             mstore(0x40, nonce)
@@ -84,7 +63,7 @@ library ConsumerLib {
             let bit := shl(and(0xff, nonce), 1)
             if and(bit, bucketValue) {
                 // `InvalidNonce(address,uint256)` with padding for `account`.
-                mstore(0x0c, 0xdbc205b1000000000000000000000000)
+                mstore(0x0c, shl(96, 0xdbc205b1))
                 revert(0x1c, 0x44)
             }
 
@@ -111,13 +90,18 @@ library ConsumerLib {
             let freeMemoryPointer := mload(0x40)
 
             // derive the nonce bucket slot:
-            // keccak256(_CONSUMER_NONCE_SCOPE ++ account ++ nonce[0:31])
+            // keccak256(_ALLOCATOR_NONCE_SCOPE ++ account ++ nonce[0:31])
             mstore(0x20, account)
             mstore(0x0c, scope)
             mstore(0x40, nonceToCheck)
 
-            // Retrieve nonce bucket value and determine whether the nonce is set.
-            consumed := and(shl(and(0xff, nonceToCheck), 1), sload(keccak256(0x28, 0x37)))
+            // Load the nonce bucket and check whether the target nonce bit is set.
+            // 1. `sload(keccak256(0x28, 0x37))`      – load the 256-bit bucket.
+            // 2. `and(0xff, nonceToCheck)`           – isolate the least-significant byte (bit index 0-255).
+            // 3. `shl(index, 1)`                     – build a mask (1 << index).
+            // 4. `and(mask, bucket)`                 – leave only the target bit.
+            // 5. `gt(result, 0)`                     – cast to a clean boolean (avoids dirty bits).
+            consumed := gt(and(shl(and(0xff, nonceToCheck), 1), sload(keccak256(0x28, 0x37))), 0)
 
             // Restore the free memory pointer.
             mstore(0x40, freeMemoryPointer)

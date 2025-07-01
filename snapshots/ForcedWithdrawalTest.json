@@ -1,0 +1,11 @@
+{
+  "disableForcedWithdrawal": "24611",
+  "enableForcedWithdrawal": "46987",
+  "getForcedWithdrawalStatus_disabled": "2694",
+  "getForcedWithdrawalStatus_enabled": "2694",
+  "getForcedWithdrawalStatus_pending": "2694",
+  "processForcedWithdrawal": "67065",
+  "processForcedWithdrawal_erc20Token": "66883",
+  "processForcedWithdrawal_fullBalance": "62265",
+  "processForcedWithdrawal_zeroAddress": "34525"
+}
