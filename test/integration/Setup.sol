@@ -158,8 +158,11 @@ contract Setup is TestHelpers {
 
         vm.startPrank(swapper);
         token.approve(address(theCompact), 1e18);
+        token.approve(permit2, 1e18);
         anotherToken.approve(address(theCompact), 1e18);
-        // Permit2 has infinite default approval in Solady ERC20
+        anotherToken.approve(permit2, 1e18);
+        // Permit2 does not have infinite default approval in Solady ERC20
+        // Because `_givePermit2InfiniteAllowance()` by default returns false
         vm.stopPrank();
 
         alwaysOKAllocator = address(new AlwaysOKAllocator());

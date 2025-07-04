@@ -75,7 +75,9 @@ contract DepositViaPermit2LogicTest is Permit2Test {
         // Pre-approve tokens to the logic contract.
         vm.startPrank(depositor);
         testToken.approve(address(logic), type(uint256).max);
-        secondToken.approve(address(logic), type(uint256).max);
+        testToken.approve(permit2, type(uint256).max);
+        testToken.approve(address(logic), type(uint256).max);
+        secondToken.approve(permit2, type(uint256).max);
         vm.stopPrank();
     }
 
