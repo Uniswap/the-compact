@@ -49,6 +49,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
         vm.expectEmit(true, true, false, true);
         emit KeyManagerEmissary.KeyRegistered(sponsor1, keyHash, KeyType.Secp256k1, ResetPeriod.OneDay);
         emissary.registerKey(key.keyType, key.publicKey, key.resetPeriod);
+        vm.snapshotGasLastCall("registerKey_Secp256k1Key");
 
         // Verify registration
         assertTrue(emissary.isKeyRegistered(sponsor1, keyHash));
@@ -70,6 +71,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
         vm.expectEmit(true, true, false, true);
         emit KeyManagerEmissary.KeyRegistered(sponsor1, keyHash, KeyType.P256, ResetPeriod.TenMinutes);
         emissary.registerKey(key.keyType, key.publicKey, key.resetPeriod);
+        vm.snapshotGasLastCall("registerKey_P256Key");
 
         // Verify registration
         assertTrue(emissary.isKeyRegistered(sponsor1, keyHash));
@@ -92,6 +94,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
             sponsor1, keyHash, KeyType.WebAuthnP256, ResetPeriod.OneHourAndFiveMinutes
         );
         emissary.registerKey(key.keyType, key.publicKey, key.resetPeriod);
+        vm.snapshotGasLastCall("registerKey_WebAuthnP256Key");
 
         // Verify registration
         assertTrue(emissary.isKeyRegistered(sponsor1, keyHash));
@@ -173,6 +176,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
         vm.expectEmit(true, true, false, true);
         emit KeyManagerEmissary.KeyRemovalScheduled(sponsor1, keyHash, expectedRemovalTime);
         uint256 actualRemovalTime = emissary.scheduleKeyRemoval(keyHash);
+        vm.snapshotGasLastCall("scheduleKeyRemoval");
 
         assertEq(actualRemovalTime, expectedRemovalTime);
 
@@ -260,6 +264,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
         vm.expectEmit(true, true, false, false);
         emit KeyManagerEmissary.KeyRemoved(sponsor1, keyHash);
         emissary.removeKey(keyHash);
+        vm.snapshotGasLastCall("removeKey");
 
         // Verify key is removed
         assertFalse(emissary.isKeyRegistered(sponsor1, keyHash));
@@ -318,14 +323,14 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         // Schedule removal for middle key
         emissary.scheduleKeyRemoval(key2.hash());
-        vm.stopPrank();
 
         // Fast forward time
         vm.warp(block.timestamp + 2);
 
         // Remove middle key
-        vm.prank(sponsor1);
         emissary.removeKey(key2.hash());
+        vm.snapshotGasLastCall("removeKey_FromMiddleOfArray");
+        vm.stopPrank();
 
         // Verify array is properly managed
         assertEq(emissary.getKeyCount(sponsor1), 2);
@@ -429,6 +434,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
             signature,
             lockTag
         );
+        vm.snapshotGasLastCall("verifyClaim_Secp256k1Signature");
 
         assertEq(result, IEmissary.verifyClaim.selector);
     }
@@ -482,6 +488,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         // Should find the correct key and verify
         bytes4 result = emissary.verifyClaim(sponsor1, digest, bytes32(0), signature, lockTag);
+        vm.snapshotGasLastCall("verifyClaim_MultipleKeys");
 
         assertEq(result, IEmissary.verifyClaim.selector);
     }
@@ -532,15 +539,13 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         // Generate a real P256 signature
         (bytes32 r, bytes32 s) = vm.signP256(privateKey, digest);
-
-        // Normalize signature to prevent malleability (Solady's P256 verification rejects malleable signatures)
         s = P256.normalized(s);
 
         bytes memory signature = abi.encodePacked(r, s);
         bytes12 lockTag = bytes12(uint96(uint8(ResetPeriod.OneDay)) << 92);
-
-        // This should now succeed with a real P256 signature
         bytes4 result = emissary.verifyClaim(sponsor1, digest, bytes32(0), signature, lockTag);
+        vm.snapshotGasLastCall("verifyClaim_P256Signature");
+
         assertEq(result, IEmissary.verifyClaim.selector);
     }
 
@@ -562,10 +567,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         // Generate a real P256 signature
         (bytes32 r, bytes32 s) = vm.signP256(privateKey, digest);
-
-        // Normalize signature to prevent malleability (Solady's P256 verification rejects malleable signatures)
         s = P256.normalized(s);
-
         bytes memory signature = abi.encodePacked(r, s);
 
         // Test with compatible lock tag (OneMinute) - should succeed
@@ -618,7 +620,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         bytes12 lockTag = bytes12(uint96(uint8(ResetPeriod.OneDay)) << 92);
 
-        // Test P256 signature (should now work with real signature)
+        // Test P256 signature
         {
             bytes32 p256Digest = keccak256("test message for P256");
             (bytes32 r, bytes32 s) = vm.signP256(p256PrivateKey, p256Digest);
@@ -680,6 +682,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         // Verify signature
         bytes4 result = emissary.verifyClaim(sponsor1, digest, bytes32(0), signature, lockTag);
+        vm.snapshotGasLastCall("verifyClaim_WebAuthnSignature_Safari");
         assertEq(result, IEmissary.verifyClaim.selector);
     }
 
@@ -722,6 +725,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
         // Verify signature
         bytes4 result = emissary.verifyClaim(sponsor1, digest, bytes32(0), signature, lockTag);
+        vm.snapshotGasLastCall("verifyClaim_WebAuthnSignature_Chrome");
         assertEq(result, IEmissary.verifyClaim.selector);
     }
 
@@ -906,6 +910,8 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
             compactEncodingWorks = false;
         }
 
+        vm.snapshotGasLastCall("verifyClaim_WebAuthnSignature_CompactEncoding");
+
         assertTrue(regularEncodingWorks, "Regular encoding should work");
         assertTrue(compactEncodingWorks, "Compact encoding should work");
     }
@@ -1001,10 +1007,8 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
         vm.warp(type(uint64).max - 1000);
 
         vm.prank(sponsor1);
-        // This should handle overflow gracefully
-        uint256 removableAt = emissary.scheduleKeyRemoval(key.hash());
 
-        // Should wrap around or handle overflow appropriately
+        uint256 removableAt = emissary.scheduleKeyRemoval(key.hash());
         assertTrue(removableAt > 0);
     }
 
