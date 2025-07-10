@@ -85,9 +85,34 @@ contract KeyManagerEmissary is IEmissary {
         // Store the key
         keys[msg.sender][keyHash] = key;
 
-        // Add to key hashes list
-        keyHashes[msg.sender].push(keyHash);
-        keyIndices[msg.sender][keyHash] = keyHashes[msg.sender].length; // 1-based index
+        // Add to key hashes list and update index
+        assembly ("memory-safe") {
+            // Get keyHashes[msg.sender] storage pointer
+            mstore(0x00, caller())
+            mstore(0x20, keyHashes.slot)
+            let arrSlot := keccak256(0x00, 0x40)
+
+            // Get array length
+            let arrLen := sload(arrSlot)
+
+            // Store new keyHash at the end of the array
+            mstore(0x00, arrSlot)
+            let newElementSlot := add(keccak256(0x00, 0x20), arrLen)
+            sstore(newElementSlot, keyHash)
+
+            // Update array length
+            sstore(arrSlot, add(arrLen, 1))
+
+            // Update keyIndices[msg.sender][keyHash] = new length
+            mstore(0x00, caller())
+            mstore(0x20, keyIndices.slot)
+            let sponsorIndicesSlot := keccak256(0x00, 0x40)
+
+            mstore(0x00, keyHash)
+            mstore(0x20, sponsorIndicesSlot)
+            let indexSlot := keccak256(0x00, 0x40)
+            sstore(indexSlot, add(arrLen, 1))
+        }
 
         emit KeyRegistered(msg.sender, keyHash, key.keyType, key.resetPeriod);
     }
@@ -141,10 +166,9 @@ contract KeyManagerEmissary is IEmissary {
             let arrLen := sload(arrSlot)
 
             if lt(index, sub(arrLen, 1)) {
-                // Get the last element
+                // Get the last element's key hash
                 mstore(0x00, arrSlot)
-                let lastIndex := sub(arrLen, 1)
-                let lastElementSlot := add(keccak256(0x00, 0x20), lastIndex)
+                let lastElementSlot := add(keccak256(0x00, 0x20), sub(arrLen, 1))
                 let lastKeyHash := sload(lastElementSlot)
 
                 // Move last element to the index position
@@ -164,10 +188,16 @@ contract KeyManagerEmissary is IEmissary {
 
             // Decrease array length
             sstore(arrSlot, sub(arrLen, 1))
-        }
 
-        // Clean up related storage
-        delete keyIndices[msg.sender][keyHash];
+            // Delete the original key's index
+            mstore(0x00, caller())
+            mstore(0x20, keyIndices.slot)
+            let sponsorIndicesSlot := keccak256(0x00, 0x40)
+            mstore(0x00, keyHash)
+            mstore(0x20, sponsorIndicesSlot)
+            let keyIndexSlot := keccak256(0x00, 0x40)
+            sstore(keyIndexSlot, 0)
+        }
 
         emit KeyRemoved(msg.sender, keyHash);
     }
