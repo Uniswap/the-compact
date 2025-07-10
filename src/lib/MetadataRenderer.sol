@@ -3,7 +3,8 @@ pragma solidity ^0.8.27;
 
 import { EfficiencyLib } from "./EfficiencyLib.sol";
 import { MetadataLib } from "./MetadataLib.sol";
-import { Lock } from "../types/Lock.sol";
+import { ResetPeriod } from "../types/ResetPeriod.sol";
+import { Scope } from "../types/Scope.sol";
 
 /**
  * @title MetadataRenderer
@@ -12,18 +13,24 @@ import { Lock } from "../types/Lock.sol";
  */
 contract MetadataRenderer {
     using EfficiencyLib for uint256;
-    using MetadataLib for Lock;
     using MetadataLib for address;
+    using MetadataLib for uint256;
+
+    address public immutable theCompact;
+
+    constructor() {
+        theCompact = msg.sender;
+    }
 
     /**
      * @notice External view function for generating the URI for a resource lock's ERC6909
      * token. The URI is derived from the lock's details and token identifier.
-     * @param lock The Lock struct containing the resource lock's details.
-     * @param id   The ERC6909 token identifier.
-     * @return     The generated URI string.
+     * @param id          The ERC6909 token identifier.
+     * @return            The generated URI string.
      */
-    function uri(Lock memory lock, uint256 id) external view returns (string memory) {
-        return lock.toURI(id);
+    function uri(uint256 id) external view returns (string memory) {
+        (address token, address allocator, ResetPeriod resetPeriod, Scope scope) = id.toLockDetails(theCompact);
+        return token.toURI(allocator, resetPeriod, scope, id);
     }
 
     /**
@@ -45,5 +52,15 @@ contract MetadataRenderer {
      */
     function symbol(uint256 id) external view returns (string memory) {
         return string.concat(unicode"🤝-", id.asSanitizedAddress().readSymbolWithDefaultValue());
+    }
+
+    /**
+     * @notice External view function for retrieving the decimals of an ERC6909 token.
+     * Returns the decimals of the underlying token, falling back to a default if needed.
+     * @param id The ERC6909 token identifier.
+     * @return   The number of decimals for the token.
+     */
+    function decimals(uint256 id) external view returns (uint8) {
+        return id.asSanitizedAddress().readDecimalsAsUint8WithDefaultValue();
     }
 }
