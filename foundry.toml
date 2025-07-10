@@ -12,6 +12,14 @@ libs = ["lib"]
 fuzz.runs = 10_000
 dynamic_test_linking = true
 
+additional_compiler_profiles = [
+  { name = "test", via_ir = false, optimizer = false }
+]
+
+compilation_restrictions = [
+  { paths = "test/**", via_ir = false, optimizer = false }
+]
+
 [fmt]
 line_length = 120
 tab_width = 4
