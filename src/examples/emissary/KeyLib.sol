@@ -47,8 +47,10 @@ library KeyLib {
      * @param signature The signature to verify
      * @return isValid True if the signature is valid
      */
-    function verify(Key memory key, bytes32 digest, bytes calldata signature) internal view returns (bool isValid) {
-        if (key.keyType == KeyType.Secp256k1) {
+    function verify(Key storage key, bytes32 digest, bytes calldata signature) internal view returns (bool isValid) {
+        KeyType keyType = key.keyType;
+
+        if (keyType == KeyType.Secp256k1) {
             address expectedSigner = abi.decode(key.publicKey, (address));
 
             // Try direct ECDSA recovery first
@@ -71,7 +73,7 @@ library KeyLib {
             return false;
         }
 
-        if (key.keyType == KeyType.P256) {
+        if (keyType == KeyType.P256) {
             // Extract x,y from the public key
             (bytes32 x, bytes32 y) = abi.decode(key.publicKey, (bytes32, bytes32));
 
@@ -86,7 +88,7 @@ library KeyLib {
             return P256.verifySignature(digest, r, s, x, y);
         }
 
-        if (key.keyType == KeyType.WebAuthnP256) {
+        if (keyType == KeyType.WebAuthnP256) {
             // Extract x,y from the public key
             (uint256 x, uint256 y) = abi.decode(key.publicKey, (uint256, uint256));
 

@@ -258,8 +258,9 @@ contract KeyManagerEmissary is IEmissary {
             }
 
             // Try to verify signature with this key
-            bool isValid = key.verify(digest, signature);
-            if (isValid) return true;
+            if (key.verify(digest, signature)) {
+                return true;
+            }
         }
 
         // No registered key can verify the signature
