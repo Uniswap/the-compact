@@ -48,10 +48,24 @@ library KeyLib {
      * @return isValid True if the signature is valid
      */
     function verify(Key storage key, bytes32 digest, bytes calldata signature) internal view returns (bool isValid) {
-        KeyType keyType = key.keyType;
+        KeyType keyType;
+        uint256 keyMaterialPtr;
+
+        assembly {
+            // Load the packed struct fields
+            let keyData := sload(key.slot)
+            keyType := and(keyData, 0xff)
+
+            // The public key data is stored at keccak256(key.slot + 1)
+            mstore(0x00, add(key.slot, 1))
+            keyMaterialPtr := keccak256(0x00, 0x20)
+        }
 
         if (keyType == KeyType.Secp256k1) {
-            address expectedSigner = abi.decode(key.publicKey, (address));
+            address expectedSigner;
+            assembly {
+                expectedSigner := sload(keyMaterialPtr)
+            }
 
             // Try direct ECDSA recovery first
             if (signature.length == 65) {
@@ -74,8 +88,12 @@ library KeyLib {
         }
 
         if (keyType == KeyType.P256) {
-            // Extract x,y from the public key
-            (bytes32 x, bytes32 y) = abi.decode(key.publicKey, (bytes32, bytes32));
+            bytes32 x;
+            bytes32 y;
+            assembly {
+                x := sload(keyMaterialPtr)
+                y := sload(add(keyMaterialPtr, 1))
+            }
 
             // Signature should be r || s (32 bytes * 2)
             if (signature.length != 64) {
@@ -89,8 +107,12 @@ library KeyLib {
         }
 
         if (keyType == KeyType.WebAuthnP256) {
-            // Extract x,y from the public key
-            (uint256 x, uint256 y) = abi.decode(key.publicKey, (uint256, uint256));
+            bytes32 x;
+            bytes32 y;
+            assembly {
+                x := sload(keyMaterialPtr)
+                y := sload(add(keyMaterialPtr, 1))
+            }
 
             // Try to decode the signature - first as regular ABI encoding, then as compact
             WebAuthn.WebAuthnAuth memory auth = WebAuthn.tryDecodeAuth(signature);
@@ -106,13 +128,7 @@ library KeyLib {
             }
 
             // WebAuthn verification with the digest as challenge (packed bytes)
-            return WebAuthn.verify(
-                abi.encodePacked(digest),
-                false, // requireUserVerification
-                auth,
-                bytes32(x),
-                bytes32(y)
-            );
+            return WebAuthn.verify(abi.encodePacked(digest), false, auth, x, y);
         }
 
         return false;

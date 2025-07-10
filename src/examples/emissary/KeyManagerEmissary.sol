@@ -243,13 +243,13 @@ contract KeyManagerEmissary is IEmissary {
     ) public view returns (bool canVerify) {
         // Get all key hashes for this sponsor
         bytes32[] storage sponsorKeyHashes = keyHashes[sponsor];
+        ResetPeriod lockTagResetPeriod = lockTag.toResetPeriod();
 
         // Try to verify the signature against each registered key
         for (uint256 i = 0; i < sponsorKeyHashes.length; i++) {
             Key storage key = keys[sponsor][sponsorKeyHashes[i]];
 
             // Check reset period compatibility
-            ResetPeriod lockTagResetPeriod = lockTag.toResetPeriod();
             ResetPeriod keyResetPeriod = key.resetPeriod;
 
             // Skip this key if reset periods are incompatible
