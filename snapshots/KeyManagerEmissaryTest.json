@@ -2,13 +2,13 @@
   "registerKey_P256Key": "183732",
   "registerKey_Secp256k1Key": "160851",
   "registerKey_WebAuthnP256Key": "183869",
-  "removeKey": "40046",
-  "removeKey_FromMiddleOfArray": "53951",
-  "scheduleKeyRemoval": "31478",
-  "verifyClaim_MultipleKeys": "27046",
-  "verifyClaim_P256Signature": "183464",
-  "verifyClaim_Secp256k1Signature": "13781",
-  "verifyClaim_WebAuthnSignature_Chrome": "186850",
-  "verifyClaim_WebAuthnSignature_CompactEncoding": "187532",
-  "verifyClaim_WebAuthnSignature_Safari": "187049"
+  "removeKey": "39732",
+  "removeKey_FromMiddleOfArray": "53637",
+  "scheduleKeyRemoval": "31442",
+  "verifyClaim_MultipleKeys": "26997",
+  "verifyClaim_P256Signature": "183415",
+  "verifyClaim_Secp256k1Signature": "13732",
+  "verifyClaim_WebAuthnSignature_Chrome": "186801",
+  "verifyClaim_WebAuthnSignature_CompactEncoding": "187483",
+  "verifyClaim_WebAuthnSignature_Safari": "187000"
 }

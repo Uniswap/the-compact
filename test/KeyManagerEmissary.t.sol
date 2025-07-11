@@ -306,7 +306,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
         bytes32 fakeKeyHash = bytes32(uint256(0x123));
 
         vm.prank(sponsor1);
-        vm.expectRevert(abi.encodeWithSelector(KeyManagerEmissary.KeyNotRegistered.selector, sponsor1, fakeKeyHash));
+        vm.expectRevert(abi.encodeWithSelector(KeyManagerEmissary.KeyRemovalUnavailable.selector, 0));
         emissary.removeKey(fakeKeyHash);
     }
 
