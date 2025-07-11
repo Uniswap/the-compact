@@ -145,10 +145,6 @@ contract KeyManagerEmissary is IEmissary {
      * @param keyHash The hash of the key to remove
      */
     function removeKey(bytes32 keyHash) external {
-        if (!_keyExists(msg.sender, keyHash)) {
-            revert KeyNotRegistered(msg.sender, keyHash);
-        }
-
         // Check if removal has been properly scheduled and timelock has expired
         Key storage key = keys[msg.sender][keyHash];
         uint64 removableAt = key.removalTimestamp;
@@ -218,11 +214,8 @@ contract KeyManagerEmissary is IEmissary {
         bytes calldata signature,
         bytes12 lockTag
     ) external view returns (bytes4 selector) {
-        if (canVerifyClaim(sponsor, digest, bytes32(0), signature, lockTag)) {
-            return IEmissary.verifyClaim.selector;
-        }
-
-        revert SignatureVerificationFailed();
+        require(canVerifyClaim(sponsor, digest, bytes32(0), signature, lockTag), SignatureVerificationFailed());
+        return IEmissary.verifyClaim.selector;
     }
 
     /**
@@ -274,10 +267,7 @@ contract KeyManagerEmissary is IEmissary {
      * @return key The key details
      */
     function getKey(address sponsor, bytes32 keyHash) external view returns (Key memory key) {
-        if (!_keyExists(sponsor, keyHash)) {
-            revert KeyNotRegistered(sponsor, keyHash);
-        }
-
+        require(_keyExists(sponsor, keyHash), KeyNotRegistered(sponsor, keyHash));
         return keys[sponsor][keyHash];
     }
 
@@ -334,10 +324,7 @@ contract KeyManagerEmissary is IEmissary {
      * @return resetPeriod The reset period for the key
      */
     function getKeyResetPeriod(address sponsor, bytes32 keyHash) external view returns (ResetPeriod resetPeriod) {
-        if (!_keyExists(sponsor, keyHash)) {
-            revert KeyNotRegistered(sponsor, keyHash);
-        }
-
+        require(_keyExists(sponsor, keyHash), KeyNotRegistered(sponsor, keyHash));
         return keys[sponsor][keyHash].resetPeriod;
     }
 
@@ -353,10 +340,7 @@ contract KeyManagerEmissary is IEmissary {
         view
         returns (bool isScheduled, uint256 removableAt)
     {
-        if (!_keyExists(sponsor, keyHash)) {
-            revert KeyNotRegistered(sponsor, keyHash);
-        }
-
+        require(_keyExists(sponsor, keyHash), KeyNotRegistered(sponsor, keyHash));
         uint64 schedule = keys[sponsor][keyHash].removalTimestamp;
         isScheduled = (schedule != 0);
         removableAt = uint256(schedule);
@@ -369,10 +353,6 @@ contract KeyManagerEmissary is IEmissary {
      * @return canRemove True if the key can be removed now
      */
     function canRemoveKey(address sponsor, bytes32 keyHash) external view returns (bool canRemove) {
-        if (!_keyExists(sponsor, keyHash)) {
-            return false;
-        }
-
         uint64 removableAt = keys[sponsor][keyHash].removalTimestamp;
         return (removableAt != 0 && block.timestamp >= removableAt);
     }
@@ -384,8 +364,6 @@ contract KeyManagerEmissary is IEmissary {
      * @return exists True if key exists
      */
     function _keyExists(address sponsor, bytes32 keyHash) internal view returns (bool exists) {
-        // A key exists if it has a valid keyType (structs default to zero values when uninitialized)
-        // Since KeyType enum starts at 0 (P256), we check if publicKey has content
         return keys[sponsor][keyHash].publicKey.length > 0;
     }
 }
