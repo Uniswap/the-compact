@@ -142,7 +142,7 @@ library KeyLib {
     function isValidKey(Key memory key) internal pure returns (bool isValid) {
         if (key.keyType == KeyType.Secp256k1) {
             // For Secp256k1, publicKey should be an encoded address
-            if (key.publicKey.length != 20 && key.publicKey.length != 32) return false;
+            if (key.publicKey.length != 32) return false;
             address addr = abi.decode(key.publicKey, (address));
             return addr != address(0);
         } else if (key.keyType == KeyType.P256) {

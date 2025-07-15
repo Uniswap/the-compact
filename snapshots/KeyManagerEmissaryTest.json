@@ -1,6 +1,6 @@
 {
   "registerKey_P256Key": "183732",
-  "registerKey_Secp256k1Key": "160851",
+  "registerKey_Secp256k1Key": "160805",
   "registerKey_WebAuthnP256Key": "183869",
   "removeKey": "39732",
   "removeKey_FromMiddleOfArray": "53637",
