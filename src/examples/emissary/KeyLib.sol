@@ -70,9 +70,7 @@ library KeyLib {
             // Try direct ECDSA recovery first
             if (signature.length == 64 || signature.length == 65) {
                 address recovered = ECDSA.tryRecoverCalldata(digest, signature);
-                if (recovered != address(0) && recovered == expectedSigner) {
-                    return true;
-                }
+                if (recovered == expectedSigner) return true;
             }
 
             // Try EIP-1271 if the expected signer is a contract
