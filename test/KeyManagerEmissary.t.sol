@@ -148,12 +148,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
     function test_revert_registerKey_InvalidKey() public {
         // Create an invalid key with zero address
-        Key memory invalidKey = Key({
-            keyType: KeyType.Secp256k1,
-            resetPeriod: ResetPeriod.OneDay,
-            removalTimestamp: 0,
-            publicKey: abi.encode(address(0))
-        });
+        Key memory invalidKey;
 
         vm.prank(sponsor1);
         vm.expectRevert(abi.encodeWithSelector(KeyManagerEmissary.InvalidKey.selector, invalidKey.hash()));
@@ -468,7 +463,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
 
     function test_verifyClaim_MultipleKeys() public {
         // Register multiple keys
-        (address signer1, uint256 privateKey1) = makeAddrAndKey("alice");
+        (address signer1,) = makeAddrAndKey("alice");
         (address signer2, uint256 privateKey2) = makeAddrAndKey("bob");
         Key memory key1 = KeyLib.fromAddress(signer1, ResetPeriod.OneDay);
         Key memory key2 = KeyLib.fromAddress(signer2, ResetPeriod.TenMinutes);
@@ -953,6 +948,7 @@ contract KeyManagerEmissaryTest is Test, P256VerifierEtcher {
             keyType: KeyType.Secp256k1,
             resetPeriod: ResetPeriod.OneDay,
             removalTimestamp: 0,
+            index: 0,
             publicKey: abi.encode(address(0))
         });
         assertFalse(emissary.validateKey(invalidKey));

@@ -19,11 +19,13 @@ enum KeyType {
 /// @param keyType The type of key. See the {KeyType} enum.
 /// @param resetPeriod The reset period for timelock verification.
 /// @param removalTimestamp The timestamp when key can be removed (0 means not scheduled for removal).
+/// @param index The 1-based index of this key in the keyHashes array (0 means not registered).
 /// @param publicKey The public key in encoded form.
 struct Key {
     KeyType keyType;
     ResetPeriod resetPeriod;
     uint64 removalTimestamp;
+    uint16 index;
     bytes publicKey;
 }
 
@@ -85,14 +87,14 @@ library KeyLib {
             return false;
         }
 
-        if (keyType == KeyType.P256) {
-            bytes32 x;
-            bytes32 y;
-            assembly {
-                x := sload(keyMaterialPtr)
-                y := sload(add(keyMaterialPtr, 1))
-            }
+        bytes32 x;
+        bytes32 y;
+        assembly ("memory-safe") {
+            x := sload(keyMaterialPtr)
+            y := sload(add(keyMaterialPtr, 1))
+        }
 
+        if (keyType == KeyType.P256) {
             // Signature should be r || s (32 bytes * 2)
             if (signature.length != 64) {
                 return false;
@@ -105,13 +107,6 @@ library KeyLib {
         }
 
         if (keyType == KeyType.WebAuthnP256) {
-            bytes32 x;
-            bytes32 y;
-            assembly {
-                x := sload(keyMaterialPtr)
-                y := sload(add(keyMaterialPtr, 1))
-            }
-
             // Try to decode the signature - first as regular ABI encoding, then as compact
             WebAuthn.WebAuthnAuth memory auth = WebAuthn.tryDecodeAuth(signature);
 
@@ -165,12 +160,10 @@ library KeyLib {
      * @return key The key object representing the caller
      */
     function fromAddress(address caller, ResetPeriod resetPeriod) internal pure returns (Key memory key) {
-        return Key({
-            keyType: KeyType.Secp256k1,
-            resetPeriod: resetPeriod,
-            removalTimestamp: 0,
-            publicKey: abi.encode(caller)
-        });
+        key.keyType = KeyType.Secp256k1;
+        key.resetPeriod = resetPeriod;
+        key.publicKey = abi.encode(caller);
+        return key;
     }
 
     /**
@@ -181,8 +174,10 @@ library KeyLib {
      * @return key The P256 key object
      */
     function fromP256(bytes32 x, bytes32 y, ResetPeriod resetPeriod) internal pure returns (Key memory key) {
-        return
-            Key({ keyType: KeyType.P256, resetPeriod: resetPeriod, removalTimestamp: 0, publicKey: abi.encode(x, y) });
+        key.keyType = KeyType.P256;
+        key.resetPeriod = resetPeriod;
+        key.publicKey = abi.encode(x, y);
+        return key;
     }
 
     /**
@@ -193,11 +188,9 @@ library KeyLib {
      * @return key The WebAuthn P256 key object
      */
     function fromWebAuthnP256(uint256 x, uint256 y, ResetPeriod resetPeriod) internal pure returns (Key memory key) {
-        return Key({
-            keyType: KeyType.WebAuthnP256,
-            resetPeriod: resetPeriod,
-            removalTimestamp: 0,
-            publicKey: abi.encode(x, y)
-        });
+        key.keyType = KeyType.WebAuthnP256;
+        key.resetPeriod = resetPeriod;
+        key.publicKey = abi.encode(x, y);
+        return key;
     }
 }

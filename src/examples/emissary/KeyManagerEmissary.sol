@@ -24,10 +24,6 @@ contract KeyManagerEmissary is IEmissary {
     /// @dev sponsor => keyHash[]
     mapping(address sponsor => bytes32[] keyHashes) public keyHashes;
 
-    /// @notice Index of a key hash in the keyHashes array (for efficient removal)
-    /// @dev sponsor => keyHash => index (0 = not found)
-    mapping(address sponsor => mapping(bytes32 keyHash => uint256 index)) public keyIndices;
-
     /// @notice Emitted when a key is registered
     /// @param sponsor The sponsor address
     /// @param keyHash The key hash
@@ -77,42 +73,22 @@ contract KeyManagerEmissary is IEmissary {
         external
         returns (bytes32 keyHash)
     {
-        Key memory key = Key({ keyType: keyType, publicKey: publicKey, resetPeriod: resetPeriod, removalTimestamp: 0 });
+        Key memory key;
+        key.keyType = keyType;
+        key.publicKey = publicKey;
+        key.resetPeriod = resetPeriod;
         keyHash = key.hash();
         require(key.isValidKey(), InvalidKey(keyHash));
         require(!_keyExists(msg.sender, keyHash), KeyAlreadyRegistered(msg.sender, keyHash));
 
-        // Store the key
+        // Add to key hashes list and get the new index
+        keyHashes[msg.sender].push(keyHash);
+        // We use a 1-based index (0 means unregistered)
+        uint16 newIndex = uint16(keyHashes[msg.sender].length);
+
+        // Update the key with the correct index and store it
+        key.index = newIndex;
         keys[msg.sender][keyHash] = key;
-
-        // Add to key hashes list and update index
-        assembly ("memory-safe") {
-            // Get keyHashes[msg.sender] storage pointer
-            mstore(0x00, caller())
-            mstore(0x20, keyHashes.slot)
-            let arrSlot := keccak256(0x00, 0x40)
-
-            // Get array length
-            let arrLen := sload(arrSlot)
-
-            // Store new keyHash at the end of the array
-            mstore(0x00, arrSlot)
-            let newElementSlot := add(keccak256(0x00, 0x20), arrLen)
-            sstore(newElementSlot, keyHash)
-
-            // Update array length
-            sstore(arrSlot, add(arrLen, 1))
-
-            // Update keyIndices[msg.sender][keyHash] = new length
-            mstore(0x00, caller())
-            mstore(0x20, keyIndices.slot)
-            let sponsorIndicesSlot := keccak256(0x00, 0x40)
-
-            mstore(0x00, keyHash)
-            mstore(0x20, sponsorIndicesSlot)
-            let indexSlot := keccak256(0x00, 0x40)
-            sstore(indexSlot, add(arrLen, 1))
-        }
 
         emit KeyRegistered(msg.sender, keyHash, key.keyType, key.resetPeriod);
     }
@@ -150,50 +126,24 @@ contract KeyManagerEmissary is IEmissary {
         uint64 removableAt = key.removalTimestamp;
         require(removableAt != 0 && removableAt < block.timestamp, KeyRemovalUnavailable(removableAt));
 
-        // Remove from keys mapping (delete the entire struct)
-        delete keys[msg.sender][keyHash];
-
-        // Remove from key hashes list (swap with last element and pop)
-        uint256 index = keyIndices[msg.sender][keyHash] - 1;
+        // Get the key's index (1-based) and convert to 0-based
+        uint256 index = uint256(key.index) - 1;
         bytes32[] storage sponsorKeyHashes = keyHashes[msg.sender];
 
-        assembly ("memory-safe") {
-            let arrSlot := sponsorKeyHashes.slot
-            let arrLen := sload(arrSlot)
+        // If not the last element, swap with last element
+        if (index < sponsorKeyHashes.length - 1) {
+            bytes32 lastKeyHash = sponsorKeyHashes[sponsorKeyHashes.length - 1];
+            sponsorKeyHashes[index] = lastKeyHash;
 
-            if lt(index, sub(arrLen, 1)) {
-                // Get the last element's key hash
-                mstore(0x00, arrSlot)
-                let lastElementSlot := add(keccak256(0x00, 0x20), sub(arrLen, 1))
-                let lastKeyHash := sload(lastElementSlot)
-
-                // Move last element to the index position
-                let targetSlot := add(keccak256(0x00, 0x20), index)
-                sstore(targetSlot, lastKeyHash)
-
-                // Update the moved element's index in keyIndices
-                mstore(0x00, caller())
-                mstore(0x20, keyIndices.slot)
-                let sponsorIndicesSlot := keccak256(0x00, 0x40)
-
-                mstore(0x00, lastKeyHash)
-                mstore(0x20, sponsorIndicesSlot)
-                let movedKeyIndexSlot := keccak256(0x00, 0x40)
-                sstore(movedKeyIndexSlot, add(index, 1)) // Store 1-based index
-            }
-
-            // Decrease array length
-            sstore(arrSlot, sub(arrLen, 1))
-
-            // Delete the original key's index
-            mstore(0x00, caller())
-            mstore(0x20, keyIndices.slot)
-            let sponsorIndicesSlot := keccak256(0x00, 0x40)
-            mstore(0x00, keyHash)
-            mstore(0x20, sponsorIndicesSlot)
-            let keyIndexSlot := keccak256(0x00, 0x40)
-            sstore(keyIndexSlot, 0)
+            // Update the moved key's index in its struct
+            keys[msg.sender][lastKeyHash].index = uint16(index + 1); // Convert back to 1-based
         }
+
+        // Remove the last element
+        sponsorKeyHashes.pop();
+
+        // Remove from keys mapping (delete the entire struct)
+        delete keys[msg.sender][keyHash];
 
         emit KeyRemoved(msg.sender, keyHash);
     }
@@ -364,6 +314,6 @@ contract KeyManagerEmissary is IEmissary {
      * @return exists True if key exists
      */
     function _keyExists(address sponsor, bytes32 keyHash) internal view returns (bool exists) {
-        return keys[sponsor][keyHash].publicKey.length > 0;
+        return keys[sponsor][keyHash].index != 0;
     }
 }
