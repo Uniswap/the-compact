@@ -68,7 +68,7 @@ library KeyLib {
             }
 
             // Try direct ECDSA recovery first
-            if (signature.length == 65) {
+            if (signature.length == 64 || signature.length == 65) {
                 address recovered = ECDSA.tryRecoverCalldata(digest, signature);
                 if (recovered != address(0) && recovered == expectedSigner) {
                     return true;
