@@ -16,3 +16,5 @@ typechain-types/
 .DS_Store
 node_modules
 .env
+
+snapshots/
