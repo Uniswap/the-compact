@@ -43,7 +43,7 @@ library UtilityLib {
 
     /// @notice Returns the users balance only if no reentrancy is active on the Compact. This eliminates in flight balances and ensures a valid value.
     /// @dev Only if eip-1153 (transient storage) available.
-    function safeBalanceOf(address owner, uint256 id) public view returns (uint256 amount) {
+    function settledBalanceOf(address owner, uint256 id) public view returns (uint256 amount) {
         // If transient storage available
         bytes32 reentrancySlotContent = Extsload(THE_COMPACT).exttload(bytes32(REENTRANCY_GUARD_SLOT));
         if (uint256(reentrancySlotContent) > 1) {
@@ -55,7 +55,7 @@ library UtilityLib {
 
     /// @notice Returns the users balance only if no reentrancy is active on the Compact. This eliminates in flight balances and ensures a valid value.
     /// @dev Only if eip-1153 (transient storage) is not available.
-    function safeBalanceOf_nonTransient(address owner, uint256 id) public view returns (uint256 amount) {
+    function settledBalanceOf_nonTransient(address owner, uint256 id) public view returns (uint256 amount) {
         // If  storage available
         bytes32 reentrancySlotContent = Extsload(THE_COMPACT).extsload(bytes32(REENTRANCY_GUARD_SLOT));
         if (uint256(reentrancySlotContent) > 1) {
