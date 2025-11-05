@@ -29,7 +29,7 @@ library UtilityLib {
         }
     }
 
-    /// @notice Returns the users balance only if no reentrancy is active on the Compact. This eliminates in flight balances and ensures a valid value.
+    /// @notice Returns the users balance only if reentrancy protection is not active on the Compact. This eliminates in flight balances before the ERC6909 tokens were burned.
     /// @dev Only if eip-1153 (transient storage) available.
     function settledBalanceOf(address owner, uint256 id) internal view returns (uint256 amount) {
         // If transient storage available
@@ -41,7 +41,7 @@ library UtilityLib {
         return ERC6909(THE_COMPACT).balanceOf(owner, id);
     }
 
-    /// @notice Returns the users balance only if no reentrancy is active on the Compact. This eliminates in flight balances and ensures a valid value.
+    /// @notice Returns the users balance only if reentrancy protection is not active on the Compact. This eliminates in flight balances before the ERC6909 tokens were burned.
     /// @dev Only if eip-1153 (transient storage) is not available.
     function settledBalanceOf_nonTransient(address owner, uint256 id) internal view returns (uint256 amount) {
         // If  storage available
