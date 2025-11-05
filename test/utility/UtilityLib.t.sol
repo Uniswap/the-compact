@@ -15,15 +15,23 @@ contract UtilityLibTest is Setup {
 
     function setUp() public override {
         super.setUp();
+
+        if (vm.envOr("COVERAGE", false)) {
+            // Deploy the compact on the correct address for coverage
+            vm.etch(UtilityLib.THE_COMPACT, address(theCompact).code);
+            theCompact = TheCompact(UtilityLib.THE_COMPACT);
+        }
     }
 
-    function test_checkTheCompactDeployments() public view {
+    function test_checkTheCompactAddress() public view {
         assertEq(address(theCompact), UtilityLib.THE_COMPACT);
     }
 
     function test_checkCheckTstoreAvailable_success() public view {
-        bool available = UtilityLib.checkTstoreAvailable();
-        assertTrue(available);
+        if (!vm.envOr("COVERAGE", false)) {
+            bool available = UtilityLib.checkTstoreAvailable();
+            assertTrue(available);
+        }
     }
 
     function test_checkCheckTstoreAvailable_failure() public {
@@ -44,6 +52,12 @@ contract UtilityLibTest_Transient is Setup {
     function setUp() public override {
         super.setUp();
 
+        if (vm.envOr("COVERAGE", false)) {
+            // Deploy the compact on the correct address for coverage
+            vm.etch(UtilityLib.THE_COMPACT, address(theCompact).code);
+            theCompact = TheCompact(UtilityLib.THE_COMPACT);
+        }
+
         (, lockTag) = _registerAllocator(alwaysOKAllocator);
         idEth = theCompact.depositNative{ value: 1e18 }(lockTag, address(this));
 
@@ -54,10 +68,6 @@ contract UtilityLibTest_Transient is Setup {
         // Deposit malicious ERC20 token
         idERC20 = theCompact.depositERC20(address(checkBalanceDuringTransfer), lockTag, 1e18, address(this));
         checkBalanceDuringTransfer.setId(idERC20);
-    }
-
-    function test_checkTheCompactAddress() public view {
-        assertEq(address(theCompact), UtilityLib.THE_COMPACT);
     }
 
     function test_makeSureTransientStorageIsUsed() public {
@@ -146,6 +156,12 @@ contract UtilityLibTest_NonTransient is Setup {
 
     function setUp() public override {
         super.setUp();
+
+        if (vm.envOr("COVERAGE", false)) {
+            // Deploy the compact on the correct address for coverage
+            vm.etch(UtilityLib.THE_COMPACT, address(theCompact).code);
+            theCompact = TheCompact(UtilityLib.THE_COMPACT);
+        }
 
         // manipulate the code of the TSTORE_TEST_CONTRACT to be the code of theCompact_deployedBytecode_noTransientStorage
         bytes memory deployedCode = HelperConstants.theCompact_deployedBytecode_noTransientStorage;
