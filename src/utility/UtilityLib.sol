@@ -12,8 +12,9 @@ library UtilityLib {
     uint256 internal constant REENTRANCY_GUARD_SLOT = 0x929eee149b4bd21268;
 
     error TheCompactNotDeployed();
-    error UntrustedBalance();
+    error BalanceNotSettled();
 
+    /// @notice Checks if the Compact is deployed and if transient storage is available on the chain.
     function checkTstoreAvailable() internal view returns (bool ok) {
         if (TSTORE_TEST_CONTRACT.code.length == 0) {
             revert TheCompactNotDeployed();
@@ -30,26 +31,26 @@ library UtilityLib {
     }
 
     /// @notice Returns the users balance only if reentrancy protection is not active on the Compact. This eliminates in flight balances before the ERC6909 tokens were burned.
-    /// @dev Only if eip-1153 (transient storage) available.
+    /// @dev The function favors chains supporting eip-1153 (transient storage)
     function settledBalanceOf(address owner, uint256 id) internal view returns (uint256 amount) {
-        // If transient storage available
-        bytes32 reentrancySlotContent = Extsload(THE_COMPACT).exttload(bytes32(REENTRANCY_GUARD_SLOT));
-        if (uint256(reentrancySlotContent) > 1) {
-            revert UntrustedBalance();
+        // Favoring transient storage
+        try Extsload(THE_COMPACT).exttload(bytes32(REENTRANCY_GUARD_SLOT)) returns (bytes32 reentrancySlotContent) {
+            if (uint256(reentrancySlotContent) > 1) {
+                revert BalanceNotSettled();
+            }
+        } catch {
+            // If the call fails, assume transient storage is not available, so falling back to persistent storage
+            try Extsload(THE_COMPACT).extsload(bytes32(REENTRANCY_GUARD_SLOT)) returns (bytes32 reentrancySlotContent) {
+                if (uint256(reentrancySlotContent) > 1) {
+                    revert BalanceNotSettled();
+                }
+            } catch {
+                // If the call fails as well, assume the compact is not deployed
+                revert TheCompactNotDeployed();
+            }
         }
 
-        return ERC6909(THE_COMPACT).balanceOf(owner, id);
-    }
-
-    /// @notice Returns the users balance only if reentrancy protection is not active on the Compact. This eliminates in flight balances before the ERC6909 tokens were burned.
-    /// @dev Only if eip-1153 (transient storage) is not available.
-    function settledBalanceOf_nonTransient(address owner, uint256 id) internal view returns (uint256 amount) {
-        // If  storage available
-        bytes32 reentrancySlotContent = Extsload(THE_COMPACT).extsload(bytes32(REENTRANCY_GUARD_SLOT));
-        if (uint256(reentrancySlotContent) > 1) {
-            revert UntrustedBalance();
-        }
-
+        // If we get here, the balance is settled, so returning the balance
         return ERC6909(THE_COMPACT).balanceOf(owner, id);
     }
 }
