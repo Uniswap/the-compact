@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import { UtilityLib } from "../../src/utility/UtilityLib.sol";
+import { Utility } from "../../src/utility/Utility.sol";
 import { TheCompact } from "../../src/TheCompact.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 
