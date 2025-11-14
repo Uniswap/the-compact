@@ -10,26 +10,56 @@ import { HelperConstants } from "../helpers/HelperConstants.sol";
 import { Claim } from "../../src/types/Claims.sol";
 import { Component } from "../../src/types/Components.sol";
 
-contract UtilityLibTest is Setup {
+// ============= Test Harness =============
+
+contract UtilityTestHarness is Utility {
+    function THE_COMPACT_ADDRESS() external pure returns (address) {
+        return THE_COMPACT;
+    }
+
+    function TSTORE_TEST_CONTRACT_ADDRESS() external pure returns (address) {
+        return TSTORE_TEST_CONTRACT;
+    }
+
+    function exposed_checkTstoreAvailable() external view returns (bool) {
+        return checkTstoreAvailable();
+    }
+
+    function exposed_settledBalanceOf(address owner, uint256 id) external view returns (uint256) {
+        return settledBalanceOf(owner, id);
+    }
+
+    function tstoreInitialSupport() external view returns (bool) {
+        return TSTORE_INITIAL_SUPPORT;
+    }
+}
+
+// ============= Test Contracts =============
+
+contract UtilityTest is Setup {
+    UtilityTestHarness public utilityHarness;
     uint256 private id;
 
     function setUp() public override {
         super.setUp();
 
+        // Deploy harness AFTER environment is ready
+        utilityHarness = new UtilityTestHarness();
+
         if (vm.envOr("COVERAGE", false)) {
             // Deploy the compact on the correct address for coverage
-            vm.etch(UtilityLib.THE_COMPACT, address(theCompact).code);
-            theCompact = TheCompact(UtilityLib.THE_COMPACT);
+            vm.etch(utilityHarness.THE_COMPACT_ADDRESS(), address(theCompact).code);
+            theCompact = TheCompact(utilityHarness.THE_COMPACT_ADDRESS());
         }
     }
 
     function test_checkTheCompactAddress() public view {
-        assertEq(address(theCompact), UtilityLib.THE_COMPACT);
+        assertEq(address(theCompact), utilityHarness.THE_COMPACT_ADDRESS());
     }
 
     function test_checkCheckTstoreAvailable_success() public view {
         if (!vm.envOr("COVERAGE", false)) {
-            bool available = UtilityLib.checkTstoreAvailable();
+            bool available = utilityHarness.exposed_checkTstoreAvailable();
             assertTrue(available);
         }
     }
@@ -37,13 +67,14 @@ contract UtilityLibTest is Setup {
     function test_checkCheckTstoreAvailable_failure() public {
         // Deploy a contract that immediately reverts to simulate TSTORE not being available
         bytes memory revertCode = hex"5f5ffd"; // PUSH0 PUSH0 REVERT
-        vm.etch(UtilityLib.TSTORE_TEST_CONTRACT, revertCode);
-        bool available = UtilityLib.checkTstoreAvailable();
+        vm.etch(utilityHarness.TSTORE_TEST_CONTRACT_ADDRESS(), revertCode);
+        bool available = utilityHarness.exposed_checkTstoreAvailable();
         assertFalse(available);
     }
 }
 
-contract UtilityLibTest_Transient is Setup {
+contract UtilityTest_Transient is Setup {
+    UtilityTestHarness public utilityHarness;
     bytes12 lockTag;
     uint256 private idEth;
     uint256 private idERC20;
@@ -52,17 +83,20 @@ contract UtilityLibTest_Transient is Setup {
     function setUp() public override {
         super.setUp();
 
+        // Deploy harness AFTER environment is ready (tstore available)
+        utilityHarness = new UtilityTestHarness();
+
         if (vm.envOr("COVERAGE", false)) {
             // Deploy the compact on the correct address for coverage
-            vm.etch(UtilityLib.THE_COMPACT, address(theCompact).code);
-            theCompact = TheCompact(UtilityLib.THE_COMPACT);
+            vm.etch(utilityHarness.THE_COMPACT_ADDRESS(), address(theCompact).code);
+            theCompact = TheCompact(utilityHarness.THE_COMPACT_ADDRESS());
         }
 
         (, lockTag) = _registerAllocator(alwaysOKAllocator);
         idEth = theCompact.depositNative{ value: 1e18 }(lockTag, address(this));
 
-        // Deploy malicious ERC20 token
-        checkBalanceDuringTransfer = new CheckBalanceDuringTransfer(false);
+        // Deploy malicious ERC20 token with harness
+        checkBalanceDuringTransfer = new CheckBalanceDuringTransfer(utilityHarness);
         // Set approval
         checkBalanceDuringTransfer.approve(address(theCompact), 1e18);
         // Deposit malicious ERC20 token
@@ -72,16 +106,16 @@ contract UtilityLibTest_Transient is Setup {
 
     function test_makeSureTransientStorageIsUsed() public {
         vm.expectRevert(abi.encodeWithSignature("TStoreAlreadyActivated()"));
-        TheCompact(UtilityLib.THE_COMPACT).__activateTstore();
+        theCompact.__activateTstore();
     }
 
     function test_checkSettledBalanceOf_transient() public view {
-        uint256 balance = UtilityLib.settledBalanceOf(address(this), idEth);
+        uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idEth);
         assertEq(balance, 1e18);
     }
 
     function test_checkSettledBalanceOf_transient_reentrant() public {
-        uint256 balance = UtilityLib.settledBalanceOf(address(this), idERC20);
+        uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
         balance = theCompact.balanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
@@ -107,7 +141,7 @@ contract UtilityLibTest_Transient is Setup {
         });
         theCompact.claim(claim);
 
-        balance = UtilityLib.settledBalanceOf(address(this), idERC20);
+        balance = utilityHarness.exposed_settledBalanceOf(address(this), idERC20);
         assertEq(balance, 0);
         balance = theCompact.balanceOf(address(this), idERC20);
         assertEq(balance, 0);
@@ -139,7 +173,7 @@ contract UtilityLibTest_Transient is Setup {
         theCompact.claim(claim);
 
         // While the claim only silently failed the balance should still NOT have been affected
-        balance = UtilityLib.settledBalanceOf(address(this), idERC20);
+        balance = utilityHarness.exposed_settledBalanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
         balance = theCompact.balanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
@@ -148,7 +182,8 @@ contract UtilityLibTest_Transient is Setup {
     }
 }
 
-contract UtilityLibTest_NonTransient is Setup {
+contract UtilityTest_NonTransient is Setup {
+    UtilityTestHarness public utilityHarness;
     bytes12 lockTag;
     uint256 private idEth;
     uint256 private idERC20;
@@ -159,19 +194,26 @@ contract UtilityLibTest_NonTransient is Setup {
 
         if (vm.envOr("COVERAGE", false)) {
             // Deploy the compact on the correct address for coverage
-            vm.etch(UtilityLib.THE_COMPACT, address(theCompact).code);
-            theCompact = TheCompact(UtilityLib.THE_COMPACT);
+            vm.etch(address(0x00000000000000171ede64904551eeDF3C6C9788), address(theCompact).code);
+            theCompact = TheCompact(address(0x00000000000000171ede64904551eeDF3C6C9788));
         }
 
-        // manipulate the code of the TSTORE_TEST_CONTRACT to be the code of theCompact_deployedBytecode_noTransientStorage
+        // CRITICAL: Make TSTORE_TEST_CONTRACT revert to simulate tstore unavailable BEFORE deploying harness
+        bytes memory revertCode = hex"5f5ffd"; // PUSH0 PUSH0 REVERT
+        vm.etch(address(0x627c1071d6A691688938Bb856659768398262690), revertCode);
+
+        // Deploy harness AFTER environment manipulation (tstore unavailable)
+        utilityHarness = new UtilityTestHarness();
+
+        // Also etch the no-tstore bytecode to TheCompact for the actual tests
         bytes memory deployedCode = HelperConstants.theCompact_deployedBytecode_noTransientStorage;
-        vm.etch(UtilityLib.THE_COMPACT, deployedCode);
+        vm.etch(address(0x00000000000000171ede64904551eeDF3C6C9788), deployedCode);
 
         (, lockTag) = _registerAllocator(alwaysOKAllocator);
         idEth = theCompact.depositNative{ value: 1e18 }(lockTag, address(this));
 
-        // Deploy malicious ERC20 token
-        checkBalanceDuringTransfer = new CheckBalanceDuringTransfer(true);
+        // Deploy malicious ERC20 token with harness
+        checkBalanceDuringTransfer = new CheckBalanceDuringTransfer(utilityHarness);
         // Set approval
         checkBalanceDuringTransfer.approve(address(theCompact), 1e18);
         // Deposit malicious ERC20 token
@@ -180,20 +222,20 @@ contract UtilityLibTest_NonTransient is Setup {
     }
 
     function test_checkTheCompactAddress() public view {
-        assertEq(address(theCompact), UtilityLib.THE_COMPACT);
+        assertEq(address(theCompact), utilityHarness.THE_COMPACT_ADDRESS());
     }
 
     function test_makeSureTransientStorageIsNotUsed() public {
-        TheCompact(UtilityLib.THE_COMPACT).__activateTstore();
+        theCompact.__activateTstore();
     }
 
     function test_checkSettledBalanceOf_nonTransient() public view {
-        uint256 balance = UtilityLib.settledBalanceOf_nonTransient(address(this), idEth);
+        uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idEth);
         assertEq(balance, 1e18);
     }
 
     function test_checkSettledBalanceOf_nonTransient_reentrant() public {
-        uint256 balance = UtilityLib.settledBalanceOf_nonTransient(address(this), idERC20);
+        uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
         balance = theCompact.balanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
@@ -219,7 +261,7 @@ contract UtilityLibTest_NonTransient is Setup {
         });
         theCompact.claim(claim);
 
-        balance = UtilityLib.settledBalanceOf_nonTransient(address(this), idERC20);
+        balance = utilityHarness.exposed_settledBalanceOf(address(this), idERC20);
         assertEq(balance, 0);
         balance = theCompact.balanceOf(address(this), idERC20);
         assertEq(balance, 0);
@@ -251,7 +293,7 @@ contract UtilityLibTest_NonTransient is Setup {
         theCompact.claim(claim);
 
         // While the claim only silently failed the balance should still NOT have been affected
-        balance = UtilityLib.settledBalanceOf_nonTransient(address(this), idERC20);
+        balance = utilityHarness.exposed_settledBalanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
         balance = theCompact.balanceOf(address(this), idERC20);
         assertEq(balance, 1e18);
@@ -260,26 +302,22 @@ contract UtilityLibTest_NonTransient is Setup {
     }
 }
 
-// --- Mock Contracts ---
+// ============= Mock Contracts =============
 
 contract CheckBalanceDuringTransfer is ERC20 {
-    bool private immutable _NON_TRANSIENT;
+    UtilityTestHarness private immutable _HARNESS;
 
     uint256 private id;
     bool public afterTokenTransferActive;
 
-    constructor(bool nonTransient_) {
-        _NON_TRANSIENT = nonTransient_;
+    constructor(UtilityTestHarness harness_) {
+        _HARNESS = harness_;
         _mint(msg.sender, 1e18);
     }
 
     function _afterTokenTransfer(address from, address, uint256) internal view override {
         if (afterTokenTransferActive) {
-            if (_NON_TRANSIENT) {
-                UtilityLib.settledBalanceOf_nonTransient(from, id);
-            } else {
-                UtilityLib.settledBalanceOf(from, id);
-            }
+            _HARNESS.exposed_settledBalanceOf(from, id);
         }
     }
 
