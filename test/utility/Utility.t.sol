@@ -43,14 +43,16 @@ contract UtilityTest is Setup {
     function setUp() public override {
         super.setUp();
 
-        // Deploy harness AFTER environment is ready
-        utilityHarness = new UtilityTestHarness();
-
         if (vm.envOr("COVERAGE", false)) {
             // Deploy the compact on the correct address for coverage
-            vm.etch(utilityHarness.THE_COMPACT_ADDRESS(), address(theCompact).code);
-            theCompact = TheCompact(utilityHarness.THE_COMPACT_ADDRESS());
+            vm.etch(address(0x00000000000000171ede64904551eeDF3C6C9788), address(theCompact).code);
+            theCompact = TheCompact(address(0x00000000000000171ede64904551eeDF3C6C9788));
+            // TSTORE_TEST_CONTRACT
+            vm.etch(address(0x627c1071d6A691688938Bb856659768398262690), hex"3d5c");
         }
+
+        // Deploy harness AFTER environment is ready
+        utilityHarness = new UtilityTestHarness();
     }
 
     function test_checkTheCompactAddress() public view {
@@ -83,14 +85,16 @@ contract UtilityTest_Transient is Setup {
     function setUp() public override {
         super.setUp();
 
-        // Deploy harness AFTER environment is ready (tstore available)
-        utilityHarness = new UtilityTestHarness();
-
         if (vm.envOr("COVERAGE", false)) {
             // Deploy the compact on the correct address for coverage
-            vm.etch(utilityHarness.THE_COMPACT_ADDRESS(), address(theCompact).code);
-            theCompact = TheCompact(utilityHarness.THE_COMPACT_ADDRESS());
+            vm.etch(address(0x00000000000000171ede64904551eeDF3C6C9788), address(theCompact).code);
+            theCompact = TheCompact(address(0x00000000000000171ede64904551eeDF3C6C9788));
+            // TSTORE_TEST_CONTRACT
+            vm.etch(address(0x627c1071d6A691688938Bb856659768398262690), hex"3d5c");
         }
+
+        // Deploy harness AFTER environment is ready (tstore available)
+        utilityHarness = new UtilityTestHarness();
 
         (, lockTag) = _registerAllocator(alwaysOKAllocator);
         idEth = theCompact.depositNative{ value: 1e18 }(lockTag, address(this));
