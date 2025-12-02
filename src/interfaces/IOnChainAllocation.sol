@@ -34,7 +34,7 @@ interface IOnChainAllocation is IAllocator {
      * @param claimHash    A bytes32 hash derived from the details of the compact.
      * @param witness      Additional data used in generating the claim hash.
      * @param signature    The Permit2 signature from the depositor authorizing the deposits.
-     * @return idsAndAmounts Array of [id, amount] pairs containing the ERC6909 token identifiers
+     * @return commitments Array of resource locks containing the ERC6909 token identifiers
      *                       and the actual amounts deposited for each associated resource lock.
      */
     function permit2Allocation(
@@ -44,7 +44,7 @@ interface IOnChainAllocation is IAllocator {
         bytes32 claimHash,
         string calldata witness,
         bytes calldata signature
-    ) external returns (uint256[2][] memory idsAndAmounts);
+    ) external returns (Lock[] memory commitments);
 
     /**
      * @notice Allows to create an allocation on behalf of a recipient without the contract being in control over the funds.
