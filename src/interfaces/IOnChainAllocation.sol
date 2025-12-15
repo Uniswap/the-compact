@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import { IAllocator } from "./IAllocator.sol";
 import { Lock } from "../types/EIP712Types.sol";
+import { ISignatureTransfer } from "permit2/src/interfaces/ISignatureTransfer.sol";
+import { DepositDetails } from "../types/DepositDetails.sol";
 
 interface IOnChainAllocation is IAllocator {
     error InvalidPreparation();
