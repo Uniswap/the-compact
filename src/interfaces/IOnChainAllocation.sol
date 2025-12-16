@@ -26,6 +26,7 @@ interface IOnChainAllocation is IAllocator {
      * @param arbiter The arbiter of the allocation
      * @param depositor The address depositing tokens and the sponsor of the claim (must sign the Permit2 message)
      * @param permitted The token permissions for the Permit2 transfer. Must match the commitments in the claim
+     * @param additionalCommitmentAmounts Additional commitment amounts to allocate. Allocator must verify those tokens are unallocated.
      * @param details The deposit details including nonce, deadline, and lock tag
      *                Nonce must match the nonce structure expected by the allocator
      *                Deadline will be used as the expiration of the claim
@@ -41,6 +42,7 @@ interface IOnChainAllocation is IAllocator {
         address depositor,
         uint256 expires,
         ISignatureTransfer.TokenPermissions[] calldata permitted,
+        uint256[] calldata additionalCommitmentAmounts,
         DepositDetails calldata details,
         bytes32 claimHash,
         string calldata witness,
