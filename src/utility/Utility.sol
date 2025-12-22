@@ -6,8 +6,8 @@ import { ERC6909 } from "solady/tokens/ERC6909.sol";
 import { Tstorish } from "../lib/Tstorish.sol";
 
 contract Utility {
-    address internal constant THE_COMPACT = address(0x00000000000000171ede64904551eeDF3C6C9788);
-    address internal constant TSTORE_TEST_CONTRACT = address(0x627c1071d6A691688938Bb856659768398262690);
+    address internal constant THE_COMPACT = 0x00000000000000171ede64904551eeDF3C6C9788;
+    address internal constant TSTORE_TEST_CONTRACT = 0x627c1071d6A691688938Bb856659768398262690;
 
     uint256 internal constant REENTRANCY_GUARD_SLOT = 0x929eee149b4bd21268;
     // ╭------------------------+---------+------+--------+-------+-------------------------------╮
@@ -52,9 +52,9 @@ contract Utility {
         // does not revert, then TLOAD/TSTORE is supported. Do not forward all
         // available gas, as all forwarded gas will be consumed on revert.
         // Note that this assumes that the contract was successfully deployed.
-        address tloadTestContract = TSTORE_TEST_CONTRACT;
+        address tstoreTestContract = TSTORE_TEST_CONTRACT;
         assembly ("memory-safe") {
-            ok := staticcall(div(gas(), 10), tloadTestContract, 0, 0, 0, 0)
+            ok := staticcall(div(gas(), 10), tstoreTestContract, 0, 0, 0, 0)
         }
     }
 
