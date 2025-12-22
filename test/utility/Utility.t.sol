@@ -233,6 +233,30 @@ contract UtilityTest_NonTransient is Setup {
         theCompact.__activateTstore();
     }
 
+    /// @notice Test that when Utility successfully activates tstore on TheCompact,
+    ///         TSTORE_INITIAL_SUPPORT is false (activation pending next block)
+    function test_constructor_setsFalse_whenSuccessfullyActivatesTstore() public {
+        // Confirm _tstoreSupportActiveAt is 0 before deployment
+        bytes32 activeAtBefore = theCompact.extsload(bytes32(uint256(0)));
+        assertEq(uint256(activeAtBefore), 0, "_tstoreSupportActiveAt should be 0 before activation");
+
+        // Re-enable tstore on the chain
+        vm.etch(address(0x627c1071d6A691688938Bb856659768398262690), hex"3d5c");
+
+        // Deploy a new Utility - it should successfully call __activateTstore()
+        // because TheCompact has _tstoreInitialSupport = false and _tstoreSupportActiveAt = 0
+        UtilityTestHarness newHarness = new UtilityTestHarness();
+
+        // TSTORE_INITIAL_SUPPORT should be false because activation is pending (next block)
+        assertFalse(
+            newHarness.tstoreInitialSupport(), "TSTORE_INITIAL_SUPPORT should be false after successful activation"
+        );
+
+        // Confirm _tstoreSupportActiveAt is now block.number + 1
+        bytes32 activeAtAfter = theCompact.extsload(bytes32(uint256(0)));
+        assertEq(uint256(activeAtAfter), block.number + 1, "_tstoreSupportActiveAt should be block.number + 1");
+    }
+
     function test_checkSettledBalanceOf_nonTransient() public view {
         uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idEth);
         assertEq(balance, 1e18);
@@ -303,6 +327,106 @@ contract UtilityTest_NonTransient is Setup {
         assertEq(balance, 1e18);
         balance = checkBalanceDuringTransfer.balanceOf(address(this));
         assertEq(balance, 0);
+    }
+}
+
+// ============= Constructor Activation Tests =============
+
+contract UtilityTest_ConstructorActivation is Setup {
+    function setUp() public override {
+        super.setUp();
+
+        if (vm.envOr("COVERAGE", false)) {
+            // Deploy the compact on the correct address for coverage
+            vm.etch(address(0x00000000000000171ede64904551eeDF3C6C9788), address(theCompact).code);
+            theCompact = TheCompact(address(0x00000000000000171ede64904551eeDF3C6C9788));
+            // TSTORE_TEST_CONTRACT
+            vm.etch(address(0x627c1071d6A691688938Bb856659768398262690), hex"3d5c");
+        }
+    }
+
+    /// @notice Test that when Utility is deployed after TheCompact has already activated tstore,
+    ///         TSTORE_INITIAL_SUPPORT is true (the default Setup scenario)
+    function test_constructor_setsTrue_whenTstoreAlreadyActiveFromSetup() public {
+        // In the Setup, TheCompact is deployed with tstore support and it's already activated.
+        // When Utility constructor tries __activateTstore(), it reverts with TStoreAlreadyActivated.
+        // The constructor then reads _tstoreSupportActiveAt which is <= block.number,
+        // so TSTORE_INITIAL_SUPPORT remains true.
+        UtilityTestHarness harness = new UtilityTestHarness();
+
+        // TSTORE_INITIAL_SUPPORT should be true because tstore is already active
+        assertTrue(
+            harness.tstoreInitialSupport(), "TSTORE_INITIAL_SUPPORT should be true when tstore is already active"
+        );
+    }
+
+    /// @notice Test that when tstore is available but activation is pending (future block),
+    ///         TSTORE_INITIAL_SUPPORT is false because _tstoreSupportActiveAt > block.number
+    function test_constructor_setsFalse_whenActivationPending() public {
+        // Set _tstoreSupportActiveAt to a future block to simulate pending activation
+        uint256 futureBlock = block.number + 1;
+        vm.store(address(theCompact), bytes32(uint256(0)), bytes32(futureBlock));
+
+        // Deploy Utility - it should try to activate tstore, get TStoreAlreadyActivated,
+        // then read _tstoreSupportActiveAt which is in the future, so TSTORE_INITIAL_SUPPORT = false
+        UtilityTestHarness harness = new UtilityTestHarness();
+
+        // TSTORE_INITIAL_SUPPORT should be false because activation is pending
+        assertFalse(
+            harness.tstoreInitialSupport(), "TSTORE_INITIAL_SUPPORT should be false when tstore activation is pending"
+        );
+    }
+
+    /// @notice Test that when tstore is available and already activated (in a previous block),
+    ///         TSTORE_INITIAL_SUPPORT is true because _tstoreSupportActiveAt <= block.number
+    function test_constructor_setsTrue_whenAlreadyActivatedPreviousBlock() public {
+        // Set _tstoreSupportActiveAt to a block in the past
+        uint256 pastBlock = block.number - 1;
+        vm.store(address(theCompact), bytes32(uint256(0)), bytes32(pastBlock));
+
+        // Deploy Utility - it should try to activate tstore, get TStoreAlreadyActivated,
+        // then read _tstoreSupportActiveAt which is in the past, so TSTORE_INITIAL_SUPPORT stays true
+        UtilityTestHarness harness = new UtilityTestHarness();
+
+        // TSTORE_INITIAL_SUPPORT should be true because tstore is already active
+        assertTrue(
+            harness.tstoreInitialSupport(), "TSTORE_INITIAL_SUPPORT should be true when tstore is already active"
+        );
+    }
+
+    /// @notice Test that when tstore is available and already activated at exactly block.number,
+    ///         TSTORE_INITIAL_SUPPORT is true because _tstoreSupportActiveAt <= block.number
+    function test_constructor_setsTrue_whenActivatedAtCurrentBlock() public {
+        // Set _tstoreSupportActiveAt to exactly the current block
+        vm.store(address(theCompact), bytes32(uint256(0)), bytes32(block.number));
+
+        // Deploy Utility
+        UtilityTestHarness harness = new UtilityTestHarness();
+
+        // TSTORE_INITIAL_SUPPORT should be true because _tstoreSupportActiveAt <= block.number
+        assertTrue(
+            harness.tstoreInitialSupport(),
+            "TSTORE_INITIAL_SUPPORT should be true when tstore activated at current block"
+        );
+    }
+
+    /// @notice Test that when tstore is NOT available on the chain,
+    ///         TSTORE_INITIAL_SUPPORT is false and no activation is attempted
+    function test_constructor_noActivation_whenTstoreUnavailable() public {
+        // Make TSTORE_TEST_CONTRACT revert to simulate tstore unavailable
+        bytes memory revertCode = hex"5f5ffd"; // PUSH0 PUSH0 REVERT
+        vm.etch(address(0x627c1071d6A691688938Bb856659768398262690), revertCode);
+
+        // Deploy Utility - checkTstoreAvailable() returns false, so the activation
+        // logic is skipped entirely and TSTORE_INITIAL_SUPPORT stays false
+        UtilityTestHarness harness = new UtilityTestHarness();
+
+        // TSTORE_INITIAL_SUPPORT should be false because tstore is not available
+        assertFalse(harness.tstoreInitialSupport(), "TSTORE_INITIAL_SUPPORT should be false when tstore unavailable");
+
+        // Confirm _tstoreSupportActiveAt is 0 because no activation was attempted
+        bytes32 activeAtAfter = theCompact.extsload(bytes32(uint256(0)));
+        assertEq(uint256(activeAtAfter), 0, "_tstoreSupportActiveAt should be 0");
     }
 }
 

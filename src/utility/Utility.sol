@@ -10,6 +10,12 @@ contract Utility {
     address internal constant TSTORE_TEST_CONTRACT = address(0x627c1071d6A691688938Bb856659768398262690);
 
     uint256 internal constant REENTRANCY_GUARD_SLOT = 0x929eee149b4bd21268;
+    // ╭------------------------+---------+------+--------+-------+-------------------------------╮
+    // | Name                   | Type    | Slot | Offset | Bytes | Contract                      |
+    // +==========================================================================================+
+    // | _tstoreSupportActiveAt | uint256 | 0    | 0      | 32    | src/TheCompact.sol:TheCompact |
+    // ╰------------------------+---------+------+--------+-------+-------------------------------╯
+    bytes32 internal constant TSTORE_SUPPORT_ACTIVE_AT_SLOT = 0x00;
 
     bool internal immutable TSTORE_INITIAL_SUPPORT;
 
@@ -18,6 +24,22 @@ contract Utility {
 
     constructor() {
         TSTORE_INITIAL_SUPPORT = checkTstoreAvailable();
+        if (TSTORE_INITIAL_SUPPORT) {
+            try Tstorish(THE_COMPACT).__activateTstore() {
+                // Successfully activated TSTORE
+                /// @dev This leads to tstore only being active after the current block.
+                ///      As a precaution, we deactivate TSTORE_INITIAL_SUPPORT.
+                TSTORE_INITIAL_SUPPORT = false;
+            } catch (bytes memory) {
+                // Failed to activate TSTORE
+                /// @dev Since we know the chain supports tstore, this call can only revert with:
+                ///      TStoreAlreadyActivated(). We have to read _tstoreSupportActiveAt to confirm it is already active.
+                bytes32 tstoreSupportActiveAt = Extsload(THE_COMPACT).extsload(TSTORE_SUPPORT_ACTIVE_AT_SLOT);
+                if (uint256(tstoreSupportActiveAt) > block.number) {
+                    TSTORE_INITIAL_SUPPORT = false;
+                }
+            }
+        }
     }
 
     /// @notice Checks if the Compact is deployed and if transient storage is available on the chain.
