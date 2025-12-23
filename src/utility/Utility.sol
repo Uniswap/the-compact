@@ -33,7 +33,7 @@ contract Utility {
                 /// @dev This leads to tstore only being active after the current block.
                 ///      As a precaution, we deactivate TSTORE_INITIAL_SUPPORT.
                 TSTORE_INITIAL_SUPPORT = false;
-            } catch (bytes memory) {
+            } catch {
                 // Failed to activate TSTORE
                 /// @dev Since we know the chain supports tstore, this call can only revert with:
                 ///      TStoreAlreadyActivated(). We have to read _tstoreSupportActiveAt to confirm it is already active.
