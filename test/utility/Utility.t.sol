@@ -257,6 +257,53 @@ contract UtilityTest_NonTransient is Setup {
         assertEq(uint256(activeAtAfter), block.number + 1, "_tstoreSupportActiveAt should be block.number + 1");
     }
 
+    /// @notice Test that settledBalanceOf uses extsload when _tstoreSupportActiveAt = 0
+    ///         This is the default state when tstore was never activated
+    function test_settledBalanceOf_usesExtsload_whenActivationIsZero() public {
+        // Ensure _tstoreSupportActiveAt is 0
+        vm.store(address(theCompact), bytes32(uint256(0)), bytes32(uint256(0)));
+
+        // Set persistent storage reentrancy slot to value > 1 to trigger revert if read
+        bytes32 reentrancySlot = bytes32(uint256(0x929eee149b4bd21268));
+        vm.store(address(theCompact), reentrancySlot, bytes32(uint256(2)));
+
+        // settledBalanceOf should read from persistent storage (extsload) and revert
+        vm.expectRevert(abi.encodeWithSignature("BalanceNotSettled()"));
+        utilityHarness.exposed_settledBalanceOf(address(this), idEth);
+    }
+
+    /// @notice Test that settledBalanceOf uses extsload when _tstoreSupportActiveAt > block.number
+    ///         This happens when tstore activation is pending (takes effect next block)
+    function test_settledBalanceOf_usesExtsload_whenActivationPending() public {
+        // Set _tstoreSupportActiveAt to a future block
+        vm.store(address(theCompact), bytes32(uint256(0)), bytes32(block.number + 1));
+
+        // Set persistent storage reentrancy slot to value > 1 to trigger revert if read
+        bytes32 reentrancySlot = bytes32(uint256(0x929eee149b4bd21268));
+        vm.store(address(theCompact), reentrancySlot, bytes32(uint256(2)));
+
+        // settledBalanceOf should read from persistent storage (extsload) and revert
+        vm.expectRevert(abi.encodeWithSignature("BalanceNotSettled()"));
+        utilityHarness.exposed_settledBalanceOf(address(this), idEth);
+    }
+
+    /// @notice Test that settledBalanceOf uses exttload when _tstoreSupportActiveAt <= block.number
+    ///         This happens when tstore has been activated and is now active
+    function test_settledBalanceOf_usesExttload_whenTstoreActive() public {
+        // Set _tstoreSupportActiveAt to current block (active now)
+        vm.store(address(theCompact), bytes32(uint256(0)), bytes32(block.number));
+
+        // Set persistent storage reentrancy slot to value > 1
+        // If extsload is used, this would cause a revert
+        bytes32 reentrancySlot = bytes32(uint256(0x929eee149b4bd21268));
+        vm.store(address(theCompact), reentrancySlot, bytes32(uint256(2)));
+
+        // settledBalanceOf should read from transient storage (exttload), which is 0
+        // So it should NOT revert and return the balance
+        uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idEth);
+        assertEq(balance, 1e18, "Should return correct balance when reading from transient storage");
+    }
+
     function test_checkSettledBalanceOf_nonTransient() public view {
         uint256 balance = utilityHarness.exposed_settledBalanceOf(address(this), idEth);
         assertEq(balance, 1e18);

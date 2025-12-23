@@ -9,6 +9,9 @@ contract Utility {
     address internal constant THE_COMPACT = 0x00000000000000171ede64904551eeDF3C6C9788;
     address internal constant TSTORE_TEST_CONTRACT = 0x627c1071d6A691688938Bb856659768398262690;
 
+    bytes4 internal constant EXTTLOAD_SELECTOR = 0xf135baaa;
+    bytes4 internal constant EXTSLOAD_SELECTOR = 0x1e2eaeaf;
+
     uint256 internal constant REENTRANCY_GUARD_SLOT = 0x929eee149b4bd21268;
     // ╭------------------------+---------+------+--------+-------+-------------------------------╮
     // | Name                   | Type    | Slot | Offset | Bytes | Contract                      |
@@ -67,13 +70,38 @@ contract Utility {
             // Only check the tstore reentrancy guard slot
             reentrancySlotContent = Extsload(THE_COMPACT).exttload(bytes32(REENTRANCY_GUARD_SLOT));
         } else {
-            // Check both slots to cover the potential transition period
-            try Extsload(THE_COMPACT).exttload(bytes32(REENTRANCY_GUARD_SLOT)) returns (bytes32 content) {
-                reentrancySlotContent = content;
-            } catch { }
+            // tstore not initially available. Check if it is active now by reading the tstore support active at slot.
+            assembly ("memory-safe") {
+                // Read the tstore support active at slot on the compact
+                mstore(0x1c, EXTSLOAD_SELECTOR)
+                mstore(0x20, TSTORE_SUPPORT_ACTIVE_AT_SLOT)
+                let ok := staticcall(gas(), THE_COMPACT, 0x1c, 0x24, 0x20, 0x20)
+                if iszero(ok) {
+                    // Indicating the call has failed. Since we ensure the compact is deployed in the constructor, this can only be due to out of gas.
+                    revert(0, 0)
+                }
 
-            // Independent of the result, check the persistent storage slot
-            reentrancySlotContent |= Extsload(THE_COMPACT).extsload(bytes32(REENTRANCY_GUARD_SLOT));
+                let tstoreSupportActiveAt := mload(0x20)
+
+                // If tstoreSupportActiveAt is 0 or is greater than the current block number, then tstore is not supported in this case.
+                // 0 could only be indicating tstore is valid, if TSTORE_INITIAL_SUPPORT was true, so we can safely assume tstore is not supported in this case.
+                let tstoreSupported := and(gt(tstoreSupportActiveAt, 0), iszero(gt(tstoreSupportActiveAt, number())))
+
+                // If tstore is supported update the selector to read from the transient storage slot
+                if tstoreSupported {
+                    mstore(0x1c, EXTTLOAD_SELECTOR)
+                }
+
+                // Update the slot pointer to the reentrancy guard slot
+                mstore(0x20, REENTRANCY_GUARD_SLOT)
+
+                // Call the Compact to read the reentrancy guard slot
+                pop(staticcall(gas(), THE_COMPACT, 0x1c, 0x24, 0, 0x20))
+                reentrancySlotContent := mload(0)
+
+                // We do not need to check for success.
+                // If the reentrancy slot read runs out of gas, mload(0) will read the selector, which will trigger a BalanceNotSettled() revert.
+            }
         }
 
         if (uint256(reentrancySlotContent) > 1) {
