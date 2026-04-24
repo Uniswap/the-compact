@@ -1,5 +1,6 @@
 {
   "name": "the-compact",
+  "private": true,
   "version": "1.0.0",
   "description": "The Compact is an ownerless ERC6909 contract that facilitates the voluntary formation and mediation of reusable resource locks.",
   "repository": {
