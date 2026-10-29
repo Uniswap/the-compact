@@ -427,7 +427,7 @@ contract ForcedWithdrawalTest is Setup {
 
         // Test: process forced withdrawal with zero amount
         vm.prank(swapper);
-        vm.expectRevert(abi.encodeWithSignature("InsufficientBalance()"));
+        vm.expectRevert(abi.encodeWithSignature("ZeroAmount()"));
         theCompact.forcedWithdrawal(id, recipient, 0);
 
         // Verify: balances are unchanged

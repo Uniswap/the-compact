@@ -165,7 +165,7 @@ contract TransferLogicTest is Test {
         });
 
         // Reverts because zero amount is disallowed
-        vm.expectRevert(abi.encodePacked(bytes4(keccak256("InsufficientBalance()"))));
+        vm.expectRevert(abi.encodePacked(bytes4(keccak256("ZeroAmount()"))));
         vm.prank(sponsor);
         logic.processTransfer(transfer);
     }
@@ -305,7 +305,7 @@ contract TransferLogicTest is Test {
         emit ERC6909.Transfer(sponsor, sponsor, duplicateRecipient, secondTokenId, 150);
 
         // Reverts because of the zero amount transfer
-        vm.expectRevert(abi.encodePacked(bytes4(keccak256("InsufficientBalance()"))));
+        vm.expectRevert(abi.encodePacked(bytes4(keccak256("ZeroAmount()"))));
 
         vm.prank(sponsor);
         logic.processBatchTransfer(batchTransfer);

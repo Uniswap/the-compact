@@ -46,8 +46,10 @@ library TransferLib {
             let fromBalance := sload(fromBalanceSlot)
 
             // Revert if amount is zero or exceeds balance.
+            // Branchlessly select ZeroAmount() vs InsufficientBalance().
             if or(iszero(amount), gt(amount, fromBalance)) {
-                mstore(0x00, 0xf4d678b8) // `InsufficientBalance()`.
+                // iszero(amount) ? ZeroAmount() : InsufficientBalance()
+                mstore(0x00, xor(0xf4d678b8, mul(iszero(amount), xor(0xf4d678b8, 0x1f2a2005))))
                 revert(0x1c, 0x04)
             }
 
@@ -176,9 +178,11 @@ library TransferLib {
             // Load from sender's current balance.
             let fromBalance := sload(fromBalanceSlot)
 
-            // Revert if insufficient balance.
+            // Revert if amount is zero or exceeds balance.
+            // Branchlessly select ZeroAmount() vs InsufficientBalance().
             if or(iszero(amount), gt(amount, fromBalance)) {
-                mstore(0x00, 0xf4d678b8) // `InsufficientBalance()`.
+                // iszero(amount) ? ZeroAmount() : InsufficientBalance()
+                mstore(0x00, xor(0xf4d678b8, mul(iszero(amount), xor(0xf4d678b8, 0x1f2a2005))))
                 revert(0x1c, 0x04)
             }
 

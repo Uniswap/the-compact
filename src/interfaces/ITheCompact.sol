@@ -684,6 +684,7 @@ interface ITheCompact {
      */
     function name() external pure returns (string memory);
 
+    error ZeroAmount();
     error InvalidToken(address token);
     error Expired(uint256 expiration);
     error InvalidSignature();
